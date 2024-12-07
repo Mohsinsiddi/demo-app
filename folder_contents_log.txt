@@ -1,0 +1,2805 @@
+Contents of packages/valory/contracts/erc20:
+==================================================
+
+File: __init__.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2023-2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the support resources for an ERC20 token."""
+
+
+File: README.md
+------------------------------
+# ERC20 token contract
+
+
+File: contract.yaml
+------------------------------
+name: erc20
+author: valory
+version: 0.1.0
+type: contract
+description: ERC20 token contract
+license: Apache-2.0
+aea_version: '>=1.0.0, <2.0.0'
+fingerprint:
+  README.md: bafybeifmfma6rglvpa22odtozyosnp5mwljum64utxip2wgmezuhnjjjyi
+  __init__.py: bafybeif5vpc3dfrlxlch7brbhmdwksabyzddpfqgm56vdbbkek3t3br6ke
+  build/ERC20.json: bafybeiemn5b5nszuss7xj6lmvmjuendltp6wz7ubihdvd7c6wqw4bohbpa
+  contract.py: bafybeidewckxjj6vaz7sphkpnjgmsyhi7v7hijaz44yu7vbsnv3znqj3wm
+fingerprint_ignore_patterns: []
+contracts: []
+class_name: ERC20
+contract_interface_paths:
+  ethereum: build/ERC20.json
+dependencies:
+  ecdsa:
+    version: '>=0.15'
+  eth_typing: {}
+  hexbytes: {}
+  open-aea-ledger-ethereum:
+    version: ==1.57.0
+  open-aea-test-autonomy:
+    version: ==0.16.1
+  packaging: {}
+  requests:
+    version: ==2.28.1
+  web3:
+    version: <7,>=6.0.0
+
+
+File: contract.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2023-2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the class to connect to an ERC20 token contract."""
+
+from typing import Dict
+
+from aea.common import JSONLike
+from aea.configurations.base import PublicId
+from aea.contracts.base import Contract
+from aea.crypto.base import LedgerApi
+from aea_ledger_ethereum import EthereumApi
+
+
+PUBLIC_ID = PublicId.from_str("valory/erc20:0.1.0")
+
+
+class ERC20(Contract):
+    """The ERC20 contract."""
+
+    contract_id = PUBLIC_ID
+
+    @classmethod
+    def check_balance(
+        cls,
+        ledger_api: EthereumApi,
+        contract_address: str,
+        account: str,
+    ) -> JSONLike:
+        """Check the balance of the given account."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        balance_of = getattr(contract_instance.functions, "balanceOf")  # noqa
+        token_balance = balance_of(account).call()
+        wallet_balance = ledger_api.api.eth.get_balance(account)
+        return dict(token=token_balance, wallet=wallet_balance)
+
+    @classmethod
+    def get_allowance(
+        cls,
+        ledger_api: EthereumApi,
+        contract_address: str,
+        owner: str,
+        spender: str,
+    ) -> JSONLike:
+        """Check the balance of the given account."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        allowance = contract_instance.functions.allowance(owner, spender).call()
+        return dict(data=allowance)
+
+    @classmethod
+    def build_deposit_tx(
+        cls,
+        ledger_api: EthereumApi,
+        contract_address: str,
+    ) -> Dict[str, bytes]:
+        """Build a deposit transaction."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        data = contract_instance.encodeABI("deposit")
+        return {"data": bytes.fromhex(data[2:])}
+
+    @classmethod
+    def build_withdraw_tx(
+        cls,
+        ledger_api: EthereumApi,
+        contract_address: str,
+        amount: int,
+    ) -> Dict[str, bytes]:
+        """Build a deposit transaction."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        data = contract_instance.encodeABI("withdraw", args=(amount,))
+        return {"data": bytes.fromhex(data[2:])}
+
+    @classmethod
+    def build_approval_tx(
+        cls,
+        ledger_api: LedgerApi,
+        contract_address: str,
+        spender: str,
+        amount: int,
+    ) -> Dict[str, bytes]:
+        """Build an ERC20 approval."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        checksumed_spender = ledger_api.api.to_checksum_address(spender)
+        data = contract_instance.encodeABI("approve", args=(checksumed_spender, amount))
+        return {"data": bytes.fromhex(data[2:])}
+
+    @classmethod
+    def build_transfer_tx(
+        cls,
+        ledger_api: LedgerApi,
+        contract_address: str,
+        recipient: str,
+        amount: int,
+    ) -> Dict[str, bytes]:
+        """Build an ERC20 transfer."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        checksumed_recipient = ledger_api.api.to_checksum_address(recipient)
+        data = contract_instance.encodeABI("transfer", args=(checksumed_recipient, amount))
+        return {"data": bytes.fromhex(data[2:])}
+
+File: build/ERC20.json
+------------------------------
+{
+  "_format": "",
+  "contractName": "",
+  "sourceName": "",
+  "abi": [
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "name",
+      "outputs": [
+        {
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "guy",
+          "type": "address"
+        },
+        {
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "approve",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "totalSupply",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "name": "dst",
+          "type": "address"
+        },
+        {
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "transferFrom",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "withdraw",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "decimals",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "balanceOf",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "symbol",
+      "outputs": [
+        {
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "dst",
+          "type": "address"
+        },
+        {
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "transfer",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "deposit",
+      "outputs": [],
+      "payable": true,
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        },
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "allowance",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "payable": true,
+      "stateMutability": "payable",
+      "type": "fallback"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "guy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "Approval",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "dst",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "Transfer",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "dst",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "Deposit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "Withdrawal",
+      "type": "event"
+    }
+  ],
+  "bytecode": "",
+  "deployedBytecode": "",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
+
+Contents of packages/valory/contracts/token_reader:
+==================================================
+
+File: __init__.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2023-2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the support resources for an ERC20 token."""
+
+
+File: README.md
+------------------------------
+# ERC20 token contract
+
+
+File: contract.yaml
+------------------------------
+name: token_reader
+author: valory
+version: 0.1.0
+type: contract
+description: A simple contract to read token balances
+license: Apache-2.0
+aea_version: '>=1.0.0, <2.0.0'
+fingerprint:
+  README.md: bafybeifmfma6rglvpa22odtozyosnp5mwljum64utxip2wgmezuhnjjjyi
+  __init__.py: bafybeif5vpc3dfrlxlch7brbhmdwksabyzddpfqgm56vdbbkek3t3br6ke
+  build/token_reader.json: bafybeiemn5b5nszuss7xj6lmvmjuendltp6wz7ubihdvd7c6wqw4bohbpa
+  contract.py: bafybeig5ngdzhnb5yg5egak4qjyjjhzhzynttskheg5jyqdej6y74chx3a
+fingerprint_ignore_patterns: []
+contracts: []
+class_name: TokenReaderContract
+contract_interface_paths:
+  ethereum: build/token_reader.json
+dependencies:
+  ecdsa:
+    version: '>=0.15'
+  eth_typing: {}
+  hexbytes: {}
+  open-aea-ledger-ethereum:
+    version: ==1.57.0
+  open-aea-test-autonomy:
+    version: ==0.16.1
+  packaging: {}
+  requests:
+    version: ==2.28.1
+  web3:
+    version: <7,>=6.0.0
+
+
+File: contract.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2023-2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the class to connect to an ERC20 token contract."""
+
+from typing import Dict, List
+
+from aea.common import JSONLike
+from aea.configurations.base import PublicId
+from aea.contracts.base import Contract
+from aea.crypto.base import LedgerApi
+from aea_ledger_ethereum import EthereumApi
+from eth_typing import BlockIdentifier
+
+
+PUBLIC_ID = PublicId.from_str("valory/token_reader:0.1.0")
+
+class TokenReaderContract(Contract):
+    """A simple contract to read token balances."""
+
+    contract_id = PUBLIC_ID
+
+    @classmethod
+    def get_raw_balance(
+        cls,
+        ledger_api: EthereumApi,
+        contract_address: str,
+        address_to_check: str,
+    ) -> JSONLike:
+        """Get the balance of a given address."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        balance_of = getattr(contract_instance.functions, "balanceOf")  # noqa
+        token_balance = balance_of(address_to_check).call()
+        return dict(balance=token_balance)
+
+    @classmethod
+    def build_deposit_tx(
+        cls,
+        ledger_api: EthereumApi,
+        contract_address: str,
+    ) -> Dict[str, bytes]:
+        """Build a deposit transaction."""
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        data = contract_instance.encodeABI("deposit") 
+        return {"data": bytes.fromhex(data[2:])}        
+
+File: build/token_reader.json
+------------------------------
+{
+  "_format": "",
+  "contractName": "",
+  "sourceName": "",
+  "abi": [
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "name",
+      "outputs": [
+        {
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "guy",
+          "type": "address"
+        },
+        {
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "approve",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "totalSupply",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "name": "dst",
+          "type": "address"
+        },
+        {
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "transferFrom",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "withdraw",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "decimals",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "balanceOf",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "symbol",
+      "outputs": [
+        {
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "dst",
+          "type": "address"
+        },
+        {
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "transfer",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "deposit",
+      "outputs": [],
+      "payable": true,
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        },
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "allowance",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "payable": true,
+      "stateMutability": "payable",
+      "type": "fallback"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "guy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "Approval",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "dst",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "Transfer",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "dst",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "Deposit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "wad",
+          "type": "uint256"
+        }
+      ],
+      "name": "Withdrawal",
+      "type": "event"
+    }
+  ],
+  "bytecode": "",
+  "deployedBytecode": "",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
+
+Contents of packages/valory/skills/learning_abci:
+==================================================
+
+File: behaviours.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This package contains round behaviours of LearningAbciApp."""
+
+import json
+from abc import ABC
+from pathlib import Path
+from tempfile import mkdtemp
+from typing import Dict, Generator, Optional, Set, Tuple, Type, cast
+
+from packages.valory.contracts.erc20.contract import ERC20
+from packages.valory.contracts.gnosis_safe.contract import (
+    GnosisSafeContract,
+    SafeOperation,
+)
+from packages.valory.contracts.multisend.contract import (
+    MultiSendContract,
+    MultiSendOperation,
+)
+from packages.valory.contracts.token_reader.contract import TokenReaderContract
+from packages.valory.protocols.contract_api import ContractApiMessage
+from packages.valory.protocols.ledger_api import LedgerApiMessage
+from packages.valory.skills.abstract_round_abci.base import AbstractRound
+from packages.valory.skills.abstract_round_abci.behaviours import (
+    AbstractRoundBehaviour,
+    BaseBehaviour,
+)
+from packages.valory.skills.abstract_round_abci.io_.store import SupportedFiletype
+from packages.valory.skills.learning_abci.models import (
+    CoingeckoSpecs,
+    Params,
+    SharedState,
+)
+from packages.valory.skills.learning_abci.payloads import (
+    DataPullPayload,
+    DecisionMakingPayload,
+    NativeTransferPayload,
+    TokenBalanceCheckPayload,
+    TokenDepositPayload,
+    TxPreparationPayload,
+)
+from packages.valory.skills.learning_abci.rounds import (
+    DataPullRound,
+    DecisionMakingRound,
+    Event,
+    LearningAbciApp,
+    NativeTransferRound,
+    SynchronizedData,
+    TokenBalanceCheckRound,
+    TokenDepositRound,
+    TxPreparationRound,
+)
+from packages.valory.skills.transaction_settlement_abci.payload_tools import (
+    hash_payload_to_hex,
+)
+from packages.valory.skills.transaction_settlement_abci.rounds import TX_HASH_LENGTH
+
+
+# Define some constants
+ZERO_VALUE = 0
+HTTP_OK = 200
+GNOSIS_CHAIN_ID = "gnosis"
+EMPTY_CALL_DATA = b"0x"
+SAFE_GAS = 0
+VALUE_KEY = "value"
+TO_ADDRESS_KEY = "to_address"
+METADATA_FILENAME = "metadata.json"
+
+
+class LearningBaseBehaviour(BaseBehaviour, ABC):  # pylint: disable=too-many-ancestors
+    """Base behaviour for the learning_abci behaviours."""
+
+    @property
+    def params(self) -> Params:
+        """Return the params. Configs go here"""
+        return cast(Params, super().params)
+
+    @property
+    def synchronized_data(self) -> SynchronizedData:
+        """Return the synchronized data. This data is common to all agents"""
+        return cast(SynchronizedData, super().synchronized_data)
+
+    @property
+    def local_state(self) -> SharedState:
+        """Return the local state of this particular agent."""
+        return cast(SharedState, self.context.state)
+
+    @property
+    def coingecko_specs(self) -> CoingeckoSpecs:
+        """Get the Coingecko api specs."""
+        return self.context.coingecko_specs
+
+    @property
+    def metadata_filepath(self) -> str:
+        """Get the temporary filepath to the metadata."""
+        return str(Path(mkdtemp()) / METADATA_FILENAME)
+
+    def get_sync_timestamp(self) -> float:
+        """Get the synchronized time from Tendermint's last block."""
+        now = cast(
+            SharedState, self.context.state
+        ).round_sequence.last_round_transition_timestamp.timestamp()
+
+        return now
+
+
+class DataPullBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ancestors
+    """This behaviours pulls token prices from API endpoints and reads the native balance of an account"""
+
+    matching_round: Type[AbstractRound] = DataPullRound
+
+    def async_act(self) -> Generator:
+        """Do the act, supporting asynchronous execution."""
+
+        with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            sender = self.context.agent_address
+
+            # First mehtod to call an API: simple call to get_http_response
+            price = yield from self.get_token_price_simple()
+
+            # Second method to call an API: use ApiSpecs
+            # This call replaces the previous price, it is just an example
+            price = yield from self.get_token_price_specs()
+
+            # Store the price in IPFS
+            price_ipfs_hash = yield from self.send_price_to_ipfs(price)
+
+            # Get the native balance
+            native_balance = yield from self.get_native_balance()
+
+            # Get the token balance
+            erc20_balance = yield from self.get_erc20_balance()
+
+            # Prepare the payload to be shared with other agents
+            # After consensus, all the agents will have the same price, price_ipfs_hash and balance variables in their synchronized data
+            payload = DataPullPayload(
+                sender=sender,
+                price=price,
+                price_ipfs_hash=price_ipfs_hash,
+                native_balance=native_balance,
+                erc20_balance=erc20_balance,
+            )
+
+        # Send the payload to all agents and mark the behaviour as done
+        with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
+            yield from self.send_a2a_transaction(payload)
+            yield from self.wait_until_round_end()
+
+        self.set_done()
+
+    def get_token_price_simple(self) -> Generator[None, None, Optional[float]]:
+        """Get token price from Coingecko usinga simple HTTP request"""
+
+        # Prepare the url and the headers
+        url_template = self.params.coingecko_price_template
+        url = url_template.replace("{api_key}", self.params.coingecko_api_key)
+        headers = {"accept": "application/json"}
+
+        # Make the HTTP request to Coingecko API
+        response = yield from self.get_http_response(
+            method="GET", url=url, headers=headers
+        )
+
+        # Handle HTTP errors
+        if response.status_code != HTTP_OK:
+            self.context.logger.error(
+                f"Error while pulling the price from CoinGecko: {response.body}"
+            )
+
+        # Load the response
+        api_data = json.loads(response.body)
+        price = api_data["autonolas"]["usd"]
+
+        self.context.logger.info(f"Got token price from Coingecko: {price}")
+
+        return price
+
+    def get_token_price_specs(self) -> Generator[None, None, Optional[float]]:
+        """Get token price from Coingecko using ApiSpecs"""
+
+        # Get the specs
+        specs = self.coingecko_specs.get_spec()
+
+        # Make the call
+        raw_response = yield from self.get_http_response(**specs)
+
+        # Process the response
+        response = self.coingecko_specs.process_response(raw_response)
+
+        # Get the price
+        price = response.get("usd", None)
+        self.context.logger.info(f"Got token price from Coingecko: {price}")
+        return price
+
+    def send_price_to_ipfs(self, price) -> Generator[None, None, Optional[str]]:
+        """Store the token price in IPFS"""
+        data = {"price": price}
+        price_ipfs_hash = yield from self.send_to_ipfs(
+            filename=self.metadata_filepath, obj=data, filetype=SupportedFiletype.JSON
+        )
+        self.context.logger.info(
+            f"Price data stored in IPFS: https://gateway.autonolas.tech/ipfs/{price_ipfs_hash}"
+        )
+        return price_ipfs_hash
+
+    def get_erc20_balance(self) -> Generator[None, None, Optional[float]]:
+        """Get ERC20 balance"""
+        self.context.logger.info(
+            f"Getting Olas balance for Safe {self.synchronized_data.safe_contract_address}"
+        )
+
+        # Use the contract api to interact with the ERC20 contract
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+            contract_address=self.params.olas_token_address,
+            contract_id=str(ERC20.contract_id),
+            contract_callable="check_balance",
+            account=self.synchronized_data.safe_contract_address,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        # Check that the response is what we expect
+        if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(
+                f"Error while retrieving the balance: {response_msg}"
+            )
+            return None
+
+        balance = response_msg.raw_transaction.body.get("token", None)
+
+        # Ensure that the balance is not None
+        if balance is None:
+            self.context.logger.error(
+                f"Error while retrieving the balance:  {response_msg}"
+            )
+            return None
+
+        balance = balance / 10**18  # from wei
+
+        self.context.logger.info(
+            f"Account {self.synchronized_data.safe_contract_address} has {balance} Olas"
+        )
+        return balance
+
+    def get_native_balance(self) -> Generator[None, None, Optional[float]]:
+        """Get the native balance"""
+        self.context.logger.info(
+            f"Getting native balance for Safe {self.synchronized_data.safe_contract_address}"
+        )
+
+        ledger_api_response = yield from self.get_ledger_api_response(
+            performative=LedgerApiMessage.Performative.GET_STATE,
+            ledger_callable="get_balance",
+            account=self.synchronized_data.safe_contract_address,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        if ledger_api_response.performative != LedgerApiMessage.Performative.STATE:
+            self.context.logger.error(
+                f"Error while retrieving the native balance: {ledger_api_response}"
+            )
+            return None
+
+        balance = cast(int, ledger_api_response.state.body["get_balance_result"])
+        balance = balance / 10**18  # from wei
+
+        self.context.logger.error(f"Got native balance: {balance}")
+
+        return balance
+
+class NativeTransferBehaviour(LearningBaseBehaviour):
+    """NativeTransferBehaviour"""
+
+    matching_round: Type[AbstractRound] = NativeTransferRound
+
+    def async_act(self) -> Generator:
+        """Do the act, supporting asynchronous execution."""
+
+        with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            sender = self.context.agent_address
+
+            # Get the transaction hash
+            tx_hash = yield from self.get_tx_hash()
+
+            payload = NativeTransferPayload(
+                sender=sender,
+                tx_submitter=self.auto_behaviour_id(),
+                tx_hash=tx_hash,
+            )
+
+        with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
+            yield from self.send_a2a_transaction(payload)
+            yield from self.wait_until_round_end()
+
+        self.set_done()
+
+    def get_tx_hash(self) -> Generator[None, None, Optional[str]]:
+        """Get the transaction hash"""
+
+        # Get native transfer safe tx hash
+        safe_tx_hash = yield from self.get_native_transfer_safe_tx_hash()
+        self.context.logger.info(f"Native transfer hash is {safe_tx_hash}")
+
+        return safe_tx_hash
+
+    def get_native_transfer_safe_tx_hash(self) -> Generator[None, None, Optional[str]]:
+        """Prepare a native safe transaction"""
+
+        # Transaction data
+        data = {VALUE_KEY: 1, TO_ADDRESS_KEY: self.params.transfer_target_address}
+        self.context.logger.info(f"Native transfer data is {data}")
+
+        # Prepare safe transaction
+        safe_tx_hash = yield from self._build_safe_tx_hash(**data)
+        return safe_tx_hash
+
+    def _build_safe_tx_hash(
+        self,
+        to_address: str,
+        value: int = ZERO_VALUE,
+        data: bytes = EMPTY_CALL_DATA,
+        operation: int = SafeOperation.CALL.value,
+    ) -> Generator[None, None, Optional[str]]:
+        """Prepares and returns the safe tx hash for a native tx."""
+
+        self.context.logger.info(
+            f"Preparing Safe transaction [{self.synchronized_data.safe_contract_address}]"
+        )
+
+        # Prepare the safe transaction
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_STATE,  # type: ignore
+            contract_address=self.synchronized_data.safe_contract_address,
+            contract_id=str(GnosisSafeContract.contract_id),
+            contract_callable="get_raw_safe_transaction_hash",
+            to_address=to_address,
+            value=value,
+            data=data,
+            safe_tx_gas=SAFE_GAS,
+            chain_id=GNOSIS_CHAIN_ID,
+            operation=operation,
+        )
+
+        # Check for errors
+        if response_msg.performative != ContractApiMessage.Performative.STATE:
+            self.context.logger.error(
+                "Couldn't get safe tx hash. Expected response performative "
+                f"{ContractApiMessage.Performative.STATE.value!r}, "  # type: ignore
+                f"received {response_msg.performative.value!r}: {response_msg}."
+            )
+            return None
+
+        # Extract the hash and check it has the correct length
+        tx_hash: Optional[str] = response_msg.state.body.get("tx_hash", None)
+
+        if tx_hash is None or len(tx_hash) != TX_HASH_LENGTH:
+            self.context.logger.error(
+                "Something went wrong while trying to get the safe transaction hash. "
+                f"Invalid hash {tx_hash!r} was returned."
+            )
+            return None
+
+        # Transaction to hex
+        tx_hash = tx_hash[2:]  # strip the 0x
+
+        safe_tx_hash = hash_payload_to_hex(
+            safe_tx_hash=tx_hash,
+            ether_value=value,
+            safe_tx_gas=SAFE_GAS,
+            to_address=to_address,
+            data=data,
+            operation=operation,
+        )
+
+        self.context.logger.info(f"Safe transaction hash is {safe_tx_hash}")
+
+        return safe_tx_hash
+
+class DecisionMakingBehaviour(
+    LearningBaseBehaviour
+):  # pylint: disable=too-many-ancestors
+    """DecisionMakingBehaviour"""
+
+    matching_round: Type[AbstractRound] = DecisionMakingRound
+
+    def async_act(self) -> Generator:
+        """Do the act, supporting asynchronous execution."""
+
+        with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            sender = self.context.agent_address
+
+            # Make a decision: either transact or not
+            event = yield from self.get_next_event()
+
+            payload = DecisionMakingPayload(sender=sender, event=event)
+
+        with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
+            yield from self.send_a2a_transaction(payload)
+            yield from self.wait_until_round_end()
+
+        self.set_done()
+
+    def get_next_event(self) -> Generator[None, None, str]:
+        """Get the next event: decide whether ot transact or not based on some data."""
+
+        # This method showcases how to make decisions based on conditions.
+        # This is just a dummy implementation.
+
+        # Get the latest block number from the chain
+        block_number = yield from self.get_block_number()
+
+        # Get the balance we calculated in the previous round
+        native_balance = self.synchronized_data.native_balance
+
+        # We stored the price using two approaches: synchronized_data and IPFS
+        # Similarly, we retrieve using the corresponding ways
+        token_price = self.synchronized_data.price
+        token_price = yield from self.get_price_from_ipfs()
+
+        # If we fail to get the block number, we send the ERROR event
+        if not block_number:
+            self.context.logger.info("Block number is None. Sending the ERROR event...")
+            return Event.ERROR.value
+
+        # If we fail to get the token price, we send the ERROR event
+        if not token_price:
+            self.context.logger.info("Token price is None. Sending the ERROR event...")
+            return Event.ERROR.value
+
+        # If we fail to get the token balance, we send the ERROR event
+        if not native_balance:
+            self.context.logger.info(
+                "Native balance is None. Sending the ERROR event..."
+            )
+            return Event.ERROR.value
+
+        # Make a decision based on the balance's last number
+        last_number = int(str(native_balance)[-1])
+
+        # If the number is even, we transact
+        if last_number % 2 == 0:
+            self.context.logger.info("Number is even. Transacting.")
+            return Event.TRANSACT.value
+
+        # Otherwise we send the DONE event
+        self.context.logger.info("Number is odd. Not transacting.")
+        return Event.DONE.value
+
+    def get_block_number(self) -> Generator[None, None, Optional[int]]:
+        """Get the block number"""
+
+        # Call the ledger connection (equivalent to web3.py)
+        ledger_api_response = yield from self.get_ledger_api_response(
+            performative=LedgerApiMessage.Performative.GET_STATE,
+            ledger_callable="get_block_number",
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        # Check for errors on the response
+        if ledger_api_response.performative != LedgerApiMessage.Performative.STATE:
+            self.context.logger.error(
+                f"Error while retrieving block number: {ledger_api_response}"
+            )
+            return None
+
+        # Extract and return the block number
+        block_number = cast(
+            int, ledger_api_response.state.body["get_block_number_result"]
+        )
+
+        self.context.logger.error(f"Got block number: {block_number}")
+
+        return block_number
+
+    def get_price_from_ipfs(self) -> Generator[None, None, Optional[dict]]:
+        """Load the price data from IPFS"""
+        ipfs_hash = self.synchronized_data.price_ipfs_hash
+        price = yield from self.get_from_ipfs(
+            ipfs_hash=ipfs_hash, filetype=SupportedFiletype.JSON
+        )
+        self.context.logger.error(f"Got price from IPFS: {price}")
+        return price
+
+
+class TxPreparationBehaviour(
+    LearningBaseBehaviour
+):  # pylint: disable=too-many-ancestors
+    """TxPreparationBehaviour"""
+
+    matching_round: Type[AbstractRound] = TxPreparationRound
+
+    def async_act(self) -> Generator:
+        """Do the act, supporting asynchronous execution."""
+
+        with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            sender = self.context.agent_address
+
+            # Get the transaction hash
+            tx_hash = yield from self.get_tx_hash()
+
+            payload = TxPreparationPayload(
+                sender=sender, tx_submitter=self.auto_behaviour_id(), tx_hash=tx_hash
+            )
+
+        with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
+            yield from self.send_a2a_transaction(payload)
+            yield from self.wait_until_round_end()
+
+        self.set_done()
+
+    def get_tx_hash(self) -> Generator[None, None, Optional[str]]:
+        """Get the transaction hash"""
+
+        # Here want to showcase how to prepare different types of transactions.
+        # Depending on the timestamp's last number, we will make a native transaction,
+        # an ERC20 transaction or both.
+
+        # All transactions need to be sent from the Safe controlled by the agents.
+
+        # Again, make a decision based on the timestamp (on its last number)
+        now = int(self.get_sync_timestamp())
+        self.context.logger.info(f"Timestamp is {now}")
+        last_number = int(str(now)[-1])
+
+        # Native transaction (Safe -> recipient)
+        if last_number in [0, 1, 2, 3]:
+            self.context.logger.info("Preparing a native transaction")
+            tx_hash = yield from self.get_native_transfer_safe_tx_hash()
+            return tx_hash
+
+        # ERC20 transaction (Safe -> recipient)
+        if last_number in [4, 5, 6]:
+            self.context.logger.info("Preparing an ERC20 transaction")
+            tx_hash = yield from self.get_erc20_transfer_safe_tx_hash()
+            return tx_hash
+
+        # Multisend transaction (both native and ERC20) (Safe -> recipient)
+        self.context.logger.info("Preparing a multisend transaction")
+        tx_hash = yield from self.get_multisend_safe_tx_hash()
+        return tx_hash
+
+    def get_native_transfer_safe_tx_hash(self) -> Generator[None, None, Optional[str]]:
+        """Prepare a native safe transaction"""
+
+        # Transaction data
+        # This method is not a generator, therefore we don't use yield from
+        data = self.get_native_transfer_data()
+
+        # Prepare safe transaction
+        safe_tx_hash = yield from self._build_safe_tx_hash(**data)
+        self.context.logger.info(f"Native transfer hash is {safe_tx_hash}")
+
+        return safe_tx_hash
+
+    def get_native_transfer_data(self) -> Dict:
+        """Get the native transaction data"""
+        # Send 1 wei to the recipient
+        data = {VALUE_KEY: 1, TO_ADDRESS_KEY: self.params.transfer_target_address}
+        self.context.logger.info(f"Native transfer data is {data}")
+        return data
+
+    def get_erc20_transfer_safe_tx_hash(self) -> Generator[None, None, Optional[str]]:
+        """Prepare an ERC20 safe transaction"""
+
+        # Transaction data
+        data_hex = yield from self.get_erc20_transfer_data()
+
+        # Check for errors
+        if data_hex is None:
+            return None
+
+        # Prepare safe transaction
+        safe_tx_hash = yield from self._build_safe_tx_hash(
+            to_address=self.params.transfer_target_address, data=bytes.fromhex(data_hex)
+        )
+
+        self.context.logger.info(f"ERC20 transfer hash is {safe_tx_hash}")
+
+        return safe_tx_hash
+
+    def get_erc20_transfer_data(self) -> Generator[None, None, Optional[str]]:
+        """Get the ERC20 transaction data"""
+
+        self.context.logger.info("Preparing ERC20 transfer transaction")
+
+        # Use the contract api to interact with the ERC20 contract
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+            contract_address=self.params.olas_token_address,
+            contract_id=str(ERC20.contract_id),
+            contract_callable="build_transfer_tx",
+            recipient=self.params.transfer_target_address,
+            amount=1,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        # Check that the response is what we expect
+        if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(
+                f"Error while retrieving the balance: {response_msg}"
+            )
+            return None
+
+        data_bytes: Optional[bytes] = response_msg.raw_transaction.body.get(
+            "data", None
+        )
+
+        # Ensure that the data is not None
+        if data_bytes is None:
+            self.context.logger.error(
+                f"Error while preparing the transaction: {response_msg}"
+            )
+            return None
+
+        data_hex = data_bytes.hex()
+        self.context.logger.info(f"ERC20 transfer data is {data_hex}")
+        return data_hex
+
+    def get_multisend_safe_tx_hash(self) -> Generator[None, None, Optional[str]]:
+        """Get a multisend transaction hash"""
+        # Step 1: we prepare a list of transactions
+        # Step 2: we pack all the transactions in a single one using the mulstisend contract
+        # Step 3: we wrap the multisend call inside a Safe call, as always
+
+        multi_send_txs = []
+
+        # Native transfer
+        native_transfer_data = self.get_native_transfer_data()
+        multi_send_txs.append(
+            {
+                "operation": MultiSendOperation.CALL,
+                "to": self.params.transfer_target_address,
+                "value": native_transfer_data[VALUE_KEY],
+                # No data key in this transaction, since it is a native transfer
+            }
+        )
+
+        # ERC20 transfer
+        erc20_transfer_data_hex = yield from self.get_erc20_transfer_data()
+
+        if erc20_transfer_data_hex is None:
+            return None
+
+        multi_send_txs.append(
+            {
+                "operation": MultiSendOperation.CALL,
+                "to": self.params.olas_token_address,
+                "value": ZERO_VALUE,
+                "data": bytes.fromhex(erc20_transfer_data_hex),
+            }
+        )
+
+        # Multisend call
+        contract_api_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+            contract_address=self.params.multisend_address,
+            contract_id=str(MultiSendContract.contract_id),
+            contract_callable="get_tx_data",
+            multi_send_txs=multi_send_txs,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        # Check for errors
+        if (
+            contract_api_msg.performative
+            != ContractApiMessage.Performative.RAW_TRANSACTION
+        ):
+            self.context.logger.error(
+                f"Could not get Multisend tx hash. "
+                f"Expected: {ContractApiMessage.Performative.RAW_TRANSACTION.value}, "
+                f"Actual: {contract_api_msg.performative.value}"
+            )
+            return None
+
+        # Extract the multisend data and strip the 0x
+        multisend_data = cast(str, contract_api_msg.raw_transaction.body["data"])[2:]
+        self.context.logger.info(f"Multisend data is {multisend_data}")
+
+        # Prepare the Safe transaction
+        safe_tx_hash = yield from self._build_safe_tx_hash(
+            to_address=self.params.multisend_address,
+            value=ZERO_VALUE,  # the safe is not moving any native value into the multisend
+            data=bytes.fromhex(multisend_data),
+            operation=SafeOperation.DELEGATE_CALL.value,  # we are delegating the call to the multisend contract
+        )
+        return safe_tx_hash
+
+    def _build_safe_tx_hash(
+        self,
+        to_address: str,
+        value: int = ZERO_VALUE,
+        data: bytes = EMPTY_CALL_DATA,
+        operation: int = SafeOperation.CALL.value,
+    ) -> Generator[None, None, Optional[str]]:
+        """Prepares and returns the safe tx hash for a multisend tx."""
+
+        self.context.logger.info(
+            f"Preparing Safe transaction [{self.synchronized_data.safe_contract_address}]"
+        )
+
+        # Prepare the safe transaction
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_STATE,  # type: ignore
+            contract_address=self.synchronized_data.safe_contract_address,
+            contract_id=str(GnosisSafeContract.contract_id),
+            contract_callable="get_raw_safe_transaction_hash",
+            to_address=to_address,
+            value=value,
+            data=data,
+            safe_tx_gas=SAFE_GAS,
+            chain_id=GNOSIS_CHAIN_ID,
+            operation=operation,
+        )
+
+        # Check for errors
+        if response_msg.performative != ContractApiMessage.Performative.STATE:
+            self.context.logger.error(
+                "Couldn't get safe tx hash. Expected response performative "
+                f"{ContractApiMessage.Performative.STATE.value!r}, "  # type: ignore
+                f"received {response_msg.performative.value!r}: {response_msg}."
+            )
+            return None
+
+        # Extract the hash and check it has the correct length
+        tx_hash: Optional[str] = response_msg.state.body.get("tx_hash", None)
+
+        if tx_hash is None or len(tx_hash) != TX_HASH_LENGTH:
+            self.context.logger.error(
+                "Something went wrong while trying to get the safe transaction hash. "
+                f"Invalid hash {tx_hash!r} was returned."
+            )
+            return None
+
+        # Transaction to hex
+        tx_hash = tx_hash[2:]  # strip the 0x
+
+        safe_tx_hash = hash_payload_to_hex(
+            safe_tx_hash=tx_hash,
+            ether_value=value,
+            safe_tx_gas=SAFE_GAS,
+            to_address=to_address,
+            data=data,
+            operation=operation,
+        )
+
+        self.context.logger.info(f"Safe transaction hash is {safe_tx_hash}")
+
+        return safe_tx_hash
+
+class TokenBalanceCheckBehaviour(LearningBaseBehaviour):
+    """TokenBalanceCheckBehaviour"""
+    matching_round: Type[AbstractRound] = TokenBalanceCheckRound
+
+    def async_act(self) -> Generator:
+        """Check token balance."""
+        with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            sender = self.context.agent_address
+            
+            token_balance = yield from self.get_token_balance()
+        
+
+            payload = TokenBalanceCheckPayload(sender=sender, token_balance=token_balance)
+
+        with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
+            yield from self.send_a2a_transaction(payload)
+            yield from self.wait_until_round_end()
+
+        self.set_done()
+
+    def get_token_balance(self) -> Generator[None, None, Optional[float]]:
+        """Get ERC20 balance"""
+        self.context.logger.info(
+            f"Getting Olas balance for Safe {self.synchronized_data.safe_contract_address}"
+        )
+
+        # Use the contract api to interact with the ERC20 contract
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+            contract_address=self.params.olas_token_address,
+            contract_id=str(TokenReaderContract.contract_id),
+            contract_callable="get_raw_balance",
+            address_to_check=self.synchronized_data.safe_contract_address,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        # Check that the response is what we expect
+        if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(
+                f"Error while retrieving the balance: {response_msg}"
+            )
+            return None
+
+        balance = response_msg.raw_transaction.body.get("balance", None)
+
+        # Ensure that the balance is not None
+        if balance is None:
+            self.context.logger.error(
+                f"Error while retrieving the balance:  {response_msg}"
+            )
+            return None
+
+        balance = balance / 10**18  # from wei
+
+        self.context.logger.info(
+            f"Account {self.synchronized_data.safe_contract_address} has {balance} Olas fetched from new contract package"
+        )
+        return balance    
+
+class TokenDepositBehaviour(LearningBaseBehaviour):
+    """TokenDepositBehaviour"""
+    matching_round: Type[AbstractRound] = TokenDepositRound
+    
+    def async_act(self) -> Generator:
+        """Do the act, supporting asynchronous execution."""
+        self.context.logger.info("Entering TokenDepositBehaviour")
+        
+        with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            sender = self.context.agent_address
+            # Get timestamp to decide which transaction to make
+            now = int(self.get_sync_timestamp())
+            self.context.logger.info(f"Current timestamp: {now}")
+            last_number = int(str(now)[-1])
+            self.context.logger.info(f"Last Number of timestamp in TokenDeposit Round: {last_number}")
+            # Decide which transaction to create based on timestamp
+            if last_number in [0, 1, 2, 3, 4]:
+                self.context.logger.info("Preparing deposit transaction based on timestamp")
+                tx_hash = yield from self.get_deposit_tx_hash()
+            else:
+                self.context.logger.info("Preparing multisend transaction based on timestamp")
+                tx_hash = yield from self.get_multisend_safe_tx_hash()
+            
+            if tx_hash:
+                self.context.logger.info(f"Successfully generated transaction hash: {tx_hash}")
+            else:
+                self.context.logger.error("Failed to generate transaction hash")
+            
+            payload = TokenDepositPayload(
+                sender=sender,
+                tx_submitter=self.auto_behaviour_id(),
+                tx_hash=tx_hash,
+            )
+            
+        with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
+            yield from self.send_a2a_transaction(payload)
+            yield from self.wait_until_round_end()
+        
+        self.context.logger.info("TokenDepositBehaviour completed")
+        self.set_done()
+        
+    def get_deposit_tx_hash(self) -> Generator[None, None, Optional[str]]:
+        """Get deposit transaction hash."""
+        self.context.logger.info(f"Building deposit transaction for token at {self.params.olas_token_address}")
+        
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
+            contract_address=self.params.olas_token_address,
+            contract_id=str(TokenReaderContract.contract_id),
+            contract_callable="build_deposit_tx",
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+        
+        if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(
+                f"Error building deposit tx: got performative {response_msg.performative} "
+                f"instead of {ContractApiMessage.Performative.RAW_TRANSACTION}"
+            )
+            return None
+            
+        data = response_msg.raw_transaction.body.get("data")
+        if not data:
+            self.context.logger.error("No deposit tx data received in response")
+            return None
+            
+        self.context.logger.info("Successfully built deposit transaction data")
+        
+        # Build Safe transaction hash
+        self.context.logger.info("Building Safe transaction hash for deposit")
+        safe_tx_hash = yield from self._build_safe_tx_hash(
+            to_address=self.params.olas_token_address,
+            data=data,
+        )
+        
+        if safe_tx_hash:
+            self.context.logger.info(f"Successfully generated Safe transaction hash: {safe_tx_hash}")
+        else:
+            self.context.logger.error("Failed to generate Safe transaction hash")
+            
+        return safe_tx_hash
+    
+    def get_native_transfer_data(self) -> Dict:
+        """Get the native transaction data"""
+        data = {VALUE_KEY: 1, TO_ADDRESS_KEY: self.params.transfer_target_address}
+        self.context.logger.info(f"Native transfer data: {data}")
+        return data
+
+    def get_erc20_transfer_data(self) -> Generator[None, None, Optional[str]]:
+        """Get the ERC20 transaction data"""
+        self.context.logger.info("Preparing ERC20 transfer transaction")
+
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
+            contract_address=self.params.olas_token_address,
+            contract_id=str(ERC20.contract_id),
+            contract_callable="build_transfer_tx",
+            recipient=self.params.transfer_target_address,
+            amount=1,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(f"Error preparing ERC20 transfer: {response_msg}")
+            return None
+
+        data_bytes: Optional[bytes] = response_msg.raw_transaction.body.get("data", None)
+
+        if data_bytes is None:
+            self.context.logger.error(f"No data in ERC20 transfer response: {response_msg}")
+            return None
+
+        data_hex = data_bytes.hex()
+        self.context.logger.info(f"ERC20 transfer data: {data_hex}")
+        return data_hex
+
+    def get_multisend_safe_tx_hash(self) -> Generator[None, None, Optional[str]]:
+        """Get a multisend transaction hash combining native and ERC20 transfers."""
+        self.context.logger.info("Building multisend transaction")
+        
+        multi_send_txs = []
+
+        # Add native transfer to multisend
+        native_transfer_data = self.get_native_transfer_data()
+        multi_send_txs.append(
+            {
+                "operation": MultiSendOperation.CALL,
+                "to": self.params.transfer_target_address,
+                "value": native_transfer_data[VALUE_KEY],
+            }
+        )
+        self.context.logger.info("Added native transfer to multisend")
+
+        # Add ERC20 transfer to multisend
+        erc20_transfer_data_hex = yield from self.get_erc20_transfer_data()
+        if erc20_transfer_data_hex is None:
+            self.context.logger.error("Failed to get ERC20 transfer data")
+            return None
+
+        multi_send_txs.append(
+            {
+                "operation": MultiSendOperation.CALL,
+                "to": self.params.olas_token_address,
+                "value": ZERO_VALUE,
+                "data": bytes.fromhex(erc20_transfer_data_hex),
+            }
+        )
+        self.context.logger.info("Added ERC20 transfer to multisend")
+
+        # Build multisend transaction
+        contract_api_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
+            contract_address=self.params.multisend_address,
+            contract_id=str(MultiSendContract.contract_id),
+            contract_callable="get_tx_data",
+            multi_send_txs=multi_send_txs,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        if contract_api_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(
+                f"Could not get Multisend tx data. Expected: {ContractApiMessage.Performative.RAW_TRANSACTION.value}, "
+                f"Got: {contract_api_msg.performative.value}"
+            )
+            return None
+
+        multisend_data = cast(str, contract_api_msg.raw_transaction.body["data"])[2:]
+        self.context.logger.info(f"Generated multisend data: {multisend_data}")
+
+        # Prepare final Safe transaction
+        safe_tx_hash = yield from self._build_safe_tx_hash(
+            to_address=self.params.multisend_address,
+            value=ZERO_VALUE,
+            data=bytes.fromhex(multisend_data),
+            operation=SafeOperation.DELEGATE_CALL.value,
+        )
+        
+        if safe_tx_hash:
+            self.context.logger.info(f"Generated Safe transaction hash: {safe_tx_hash}")
+        else:
+            self.context.logger.error("Failed to generate Safe transaction hash")
+            
+        return safe_tx_hash
+
+    def _build_safe_tx_hash(
+        self,
+        to_address: str,
+        value: int = ZERO_VALUE,
+        data: bytes = EMPTY_CALL_DATA,
+        operation: int = SafeOperation.CALL.value,
+    ) -> Generator[None, None, Optional[str]]:
+        """Prepares and returns the safe tx hash for the multisend tx."""
+
+        self.context.logger.info(
+            f"Preparing Safe transaction [Safe: {self.synchronized_data.safe_contract_address}]"
+        )
+
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_STATE,
+            contract_address=self.synchronized_data.safe_contract_address,
+            contract_id=str(GnosisSafeContract.contract_id),
+            contract_callable="get_raw_safe_transaction_hash",
+            to_address=to_address,
+            value=value,
+            data=data,
+            safe_tx_gas=SAFE_GAS,
+            chain_id=GNOSIS_CHAIN_ID,
+            operation=operation,
+        )
+
+        if response_msg.performative != ContractApiMessage.Performative.STATE:
+            self.context.logger.error(
+                f"Could not get Safe tx hash. Expected: {ContractApiMessage.Performative.STATE.value}, "
+                f"Got: {response_msg.performative.value}"
+            )
+            return None
+
+        tx_hash: Optional[str] = response_msg.state.body.get("tx_hash", None)
+
+        if tx_hash is None or len(tx_hash) != TX_HASH_LENGTH:
+            self.context.logger.error(f"Invalid Safe tx hash: {tx_hash}")
+            return None
+
+        tx_hash = tx_hash[2:]  # strip the 0x
+
+        safe_tx_hash = hash_payload_to_hex(
+            safe_tx_hash=tx_hash,
+            ether_value=value,
+            safe_tx_gas=SAFE_GAS,
+            to_address=to_address,
+            data=data,
+            operation=operation,
+        )
+
+        return safe_tx_hash
+    
+class LearningRoundBehaviour(AbstractRoundBehaviour):
+    """LearningRoundBehaviour"""
+
+    initial_behaviour_cls = DataPullBehaviour
+    abci_app_cls = LearningAbciApp  # type: ignore
+    behaviours: Set[Type[BaseBehaviour]] = [  # type: ignore
+        DataPullBehaviour,
+        TokenBalanceCheckBehaviour,
+        TokenDepositBehaviour,
+        NativeTransferBehaviour,
+        DecisionMakingBehaviour,
+        TxPreparationBehaviour,
+    ]
+
+
+File: rounds.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This package contains the rounds of LearningAbciApp."""
+
+from enum import Enum
+from typing import Dict, FrozenSet, Optional, Set, Tuple
+
+from packages.valory.skills.abstract_round_abci.base import (
+    AbciApp,
+    AbciAppTransitionFunction,
+    AppState,
+    BaseSynchronizedData,
+    CollectSameUntilThresholdRound,
+    CollectionRound,
+    DegenerateRound,
+    DeserializedCollection,
+    EventToTimeout,
+    get_name,
+)
+from packages.valory.skills.learning_abci.payloads import (
+    DataPullPayload,
+    DecisionMakingPayload,
+    NativeTransferPayload,
+    TokenBalanceCheckPayload,
+    TokenDepositPayload,
+    TxPreparationPayload,
+)
+
+
+class Event(Enum):
+    """LearningAbciApp Events"""
+
+    DONE = "done"
+    ERROR = "error"
+    TRANSACT = "transact"
+    NO_MAJORITY = "no_majority"
+    ROUND_TIMEOUT = "round_timeout"
+
+
+class SynchronizedData(BaseSynchronizedData):
+    """
+    Class to represent the synchronized data.
+
+    This data is replicated by the tendermint application, so all the agents share the same data.
+    """
+
+    def _get_deserialized(self, key: str) -> DeserializedCollection:
+        """Strictly get a collection and return it deserialized."""
+        serialized = self.db.get_strict(key)
+        return CollectionRound.deserialize_collection(serialized)
+
+    @property
+    def price(self) -> Optional[float]:
+        """Get the token price."""
+        return self.db.get("price", None)
+
+    @property
+    def price_ipfs_hash(self) -> Optional[str]:
+        """Get the price_ipfs_hash."""
+        return self.db.get("price_ipfs_hash", None)
+
+    @property
+    def native_balance(self) -> Optional[float]:
+        """Get the native balance."""
+        return self.db.get("native_balance", None)
+
+    @property
+    def erc20_balance(self) -> Optional[float]:
+        """Get the erc20 balance."""
+        return self.db.get("erc20_balance", None)
+
+    @property
+    def participant_to_data_round(self) -> DeserializedCollection:
+        """Agent to payload mapping for the DataPullRound."""
+        return self._get_deserialized("participant_to_data_round")
+
+    @property
+    def most_voted_tx_hash(self) -> Optional[float]:
+        """Get the token most_voted_tx_hash."""
+        return self.db.get("most_voted_tx_hash", None)
+
+    @property
+    def participant_to_tx_round(self) -> DeserializedCollection:
+        """Get the participants to the tx round."""
+        return self._get_deserialized("participant_to_tx_round")
+
+    @property
+    def tx_submitter(self) -> str:
+        """Get the round that submitted a tx to transaction_settlement_abci."""
+        return str(self.db.get_strict("tx_submitter"))
+
+    @property
+    def participant_to_native_transfer_round(self) -> DeserializedCollection:
+        """Get participants to native transfer round."""
+        return self._get_deserialized("participant_to_native_transfer_round")
+    
+    @property
+    def token_balance(self) -> Optional[float]:
+        """Get the erc20 balance."""
+        return self.db.get("token_balance", None)
+
+    @property
+    def participant_to_token_balance_round(self) -> DeserializedCollection:
+        """Get the participants to token balance round."""
+        return self._get_deserialized("participant_to_token_balance_round")
+    
+    @property
+    def participant_to_deposit_round(self) -> DeserializedCollection:
+        """Get the participants to deposit round."""
+        return self._get_deserialized("participant_to_deposit_round")
+
+class DataPullRound(CollectSameUntilThresholdRound):
+    """DataPullRound"""
+
+    payload_class = DataPullPayload
+    synchronized_data_class = SynchronizedData
+    done_event = Event.DONE
+    no_majority_event = Event.NO_MAJORITY
+
+    # Collection key specifies where in the synchronized data the agento to payload mapping will be stored
+    collection_key = get_name(SynchronizedData.participant_to_data_round)
+
+    # Selection key specifies how to extract all the different objects from each agent's payload
+    # and where to store it in the synchronized data. Notice that the order follows the same order
+    # from the payload class.
+    selection_key = (
+        get_name(SynchronizedData.price),
+        get_name(SynchronizedData.price_ipfs_hash),
+        get_name(SynchronizedData.native_balance),
+        get_name(SynchronizedData.erc20_balance),
+    )
+
+    # Event.ROUND_TIMEOUT  # this needs to be referenced for static checkers
+
+class NativeTransferRound(CollectSameUntilThresholdRound):
+    """NativeTransferRound"""
+
+    payload_class = NativeTransferPayload
+    synchronized_data_class = SynchronizedData
+    done_event = Event.DONE
+    no_majority_event = Event.NO_MAJORITY
+    collection_key = get_name(SynchronizedData.participant_to_native_transfer_round)
+    selection_key = (
+        get_name(SynchronizedData.tx_submitter),
+        get_name(SynchronizedData.most_voted_tx_hash),
+    )
+
+class TokenBalanceCheckRound(CollectSameUntilThresholdRound):
+    """TokenBalanceCheckRound"""
+    payload_class = TokenBalanceCheckPayload
+    synchronized_data_class = SynchronizedData
+    done_event = Event.DONE
+    no_majority_event = Event.NO_MAJORITY
+    collection_key = get_name(SynchronizedData.participant_to_token_balance_round)
+    selection_key = get_name(SynchronizedData.token_balance)
+
+class TokenDepositRound(CollectSameUntilThresholdRound):
+    """TokenDepositRound"""
+    payload_class = TokenDepositPayload
+    synchronized_data_class = SynchronizedData
+    done_event = Event.DONE
+    no_majority_event = Event.NO_MAJORITY
+    collection_key = get_name(SynchronizedData.participant_to_deposit_round)
+    selection_key = (
+        get_name(SynchronizedData.tx_submitter),
+        get_name(SynchronizedData.most_voted_tx_hash),
+    )    
+    
+class DecisionMakingRound(CollectSameUntilThresholdRound):
+    """DecisionMakingRound"""
+
+    payload_class = DecisionMakingPayload
+    synchronized_data_class = SynchronizedData
+
+    # Since we need to execute some actions after consensus, we override the end_block method
+    # instead of just setting the selection and collection keys
+    def end_block(self) -> Optional[Tuple[BaseSynchronizedData, Event]]:
+        """Process the end of the block."""
+
+        if self.threshold_reached:
+            event = Event(self.most_voted_payload)
+            return self.synchronized_data, event
+
+        if not self.is_majority_possible(
+            self.collection, self.synchronized_data.nb_participants
+        ):
+            return self.synchronized_data, Event.NO_MAJORITY
+
+        return None
+
+    # Event.DONE, Event.ERROR, Event.TRANSACT, Event.ROUND_TIMEOUT  # this needs to be referenced for static checkers
+
+
+class TxPreparationRound(CollectSameUntilThresholdRound):
+    """TxPreparationRound"""
+
+    payload_class = TxPreparationPayload
+    synchronized_data_class = SynchronizedData
+    done_event = Event.DONE
+    no_majority_event = Event.NO_MAJORITY
+    collection_key = get_name(SynchronizedData.participant_to_tx_round)
+    selection_key = (
+        get_name(SynchronizedData.tx_submitter),
+        get_name(SynchronizedData.most_voted_tx_hash),
+    )
+
+    # Event.ROUND_TIMEOUT  # this needs to be referenced for static checkers
+
+
+class FinishedDecisionMakingRound(DegenerateRound):
+    """FinishedDecisionMakingRound"""
+
+
+class FinishedTxPreparationRound(DegenerateRound):
+    """FinishedLearningRound"""
+
+
+class LearningAbciApp(AbciApp[Event]):
+    """LearningAbciApp"""
+
+    initial_round_cls: AppState = DataPullRound
+    initial_states: Set[AppState] = {
+        DataPullRound,
+    }
+    transition_function: AbciAppTransitionFunction = {
+        DataPullRound: {
+            Event.NO_MAJORITY: DataPullRound,
+            Event.ROUND_TIMEOUT: DataPullRound,
+            Event.DONE: TokenBalanceCheckRound,
+        },
+        TokenBalanceCheckRound: {
+        Event.NO_MAJORITY: TokenBalanceCheckRound,
+        Event.ROUND_TIMEOUT: TokenBalanceCheckRound,
+        Event.DONE: TokenDepositRound,
+        },
+        TokenDepositRound: {
+            Event.NO_MAJORITY: TokenDepositRound,
+            Event.ROUND_TIMEOUT: TokenDepositRound,
+            Event.DONE: DecisionMakingRound,
+        },
+        DecisionMakingRound: {
+            Event.NO_MAJORITY: DecisionMakingRound,
+            Event.ROUND_TIMEOUT: DecisionMakingRound,
+            Event.DONE: FinishedDecisionMakingRound,
+            Event.ERROR: FinishedDecisionMakingRound,
+            Event.TRANSACT: TxPreparationRound,
+        },
+        TxPreparationRound: {
+            Event.NO_MAJORITY: TxPreparationRound,
+            Event.ROUND_TIMEOUT: TxPreparationRound,
+            Event.DONE: NativeTransferRound,
+        },
+        NativeTransferRound: {
+            Event.DONE: FinishedTxPreparationRound,
+            Event.NO_MAJORITY: NativeTransferRound,
+            Event.ROUND_TIMEOUT: NativeTransferRound,
+        },
+        FinishedDecisionMakingRound: {},
+        FinishedTxPreparationRound: {},
+    }
+    final_states: Set[AppState] = {
+        FinishedDecisionMakingRound,
+        FinishedTxPreparationRound,
+    }
+    event_to_timeout: EventToTimeout = {}
+    cross_period_persisted_keys: FrozenSet[str] = frozenset()
+    db_pre_conditions: Dict[AppState, Set[str]] = {
+        DataPullRound: set(),
+    }
+    db_post_conditions: Dict[AppState, Set[str]] = {
+        FinishedDecisionMakingRound: set(),
+        FinishedTxPreparationRound: {get_name(SynchronizedData.most_voted_tx_hash)},
+    }
+
+
+File: models.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the shared state for the abci skill of LearningAbciApp."""
+
+from typing import Any
+
+from packages.valory.skills.abstract_round_abci.models import ApiSpecs, BaseParams
+from packages.valory.skills.abstract_round_abci.models import (
+    BenchmarkTool as BaseBenchmarkTool,
+)
+from packages.valory.skills.abstract_round_abci.models import Requests as BaseRequests
+from packages.valory.skills.abstract_round_abci.models import (
+    SharedState as BaseSharedState,
+)
+from packages.valory.skills.learning_abci.rounds import LearningAbciApp
+
+
+class SharedState(BaseSharedState):
+    """Keep the current shared state of the skill."""
+
+    abci_app_cls = LearningAbciApp
+
+
+Requests = BaseRequests
+BenchmarkTool = BaseBenchmarkTool
+
+
+class Params(BaseParams):
+    """Parameters."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the parameters object."""
+        self.coingecko_price_template = self._ensure(
+            "coingecko_price_template", kwargs, str
+        )
+        self.coingecko_api_key = kwargs.get("coingecko_api_key", None)
+        self.transfer_target_address = self._ensure(
+            "transfer_target_address", kwargs, str
+        )
+        self.olas_token_address = self._ensure("olas_token_address", kwargs, str)
+
+        # multisend address is used in other skills, so we cannot pop it using _ensure
+        self.multisend_address = kwargs.get("multisend_address", "")
+
+        self.spacex_api_url = kwargs.get("spacex_api_url", "https://api.spacexdata.com/v4/company")
+
+
+        super().__init__(*args, **kwargs)
+
+
+class CoingeckoSpecs(ApiSpecs):
+    """A model that wraps ApiSpecs for Coingecko API."""
+
+File: fsm_specification.yaml
+------------------------------
+alphabet_in:
+- DONE
+- ERROR
+- NO_MAJORITY
+- ROUND_TIMEOUT
+- TRANSACT
+default_start_state: DataPullRound
+final_states:
+- FinishedDecisionMakingRound
+- FinishedTxPreparationRound
+label: LearningAbciApp
+start_states:
+- DataPullRound
+states:
+- DataPullRound
+- DecisionMakingRound
+- TokenBalanceCheckRound
+- TokenDepositRound
+- NativeTransferRound
+- TxPreparationRound
+- FinishedDecisionMakingRound
+- FinishedTxPreparationRound
+transition_func:
+    (DataPullRound, DONE): TokenBalanceCheckRound
+    (DataPullRound, NO_MAJORITY): DataPullRound
+    (DataPullRound, ROUND_TIMEOUT): DataPullRound
+    (TokenBalanceCheckRound, DONE): DecisionMakingRound
+    (TokenBalanceCheckRound, NO_MAJORITY): TokenBalanceCheckRound
+    (TokenBalanceCheckRound, ROUND_TIMEOUT): TokenBalanceCheckRound
+    (DecisionMakingRound, DONE): FinishedDecisionMakingRound
+    (DecisionMakingRound, ERROR): FinishedDecisionMakingRound
+    (DecisionMakingRound, NO_MAJORITY): DecisionMakingRound
+    (DecisionMakingRound, ROUND_TIMEOUT): DecisionMakingRound
+    (DecisionMakingRound, TRANSACT): TxPreparationRound
+    (TxPreparationRound, DONE): NativeTransferRound
+    (TxPreparationRound, NO_MAJORITY): TxPreparationRound
+    (TxPreparationRound, ROUND_TIMEOUT): TxPreparationRound
+    (NativeTransferRound, DONE): FinishedTxPreparationRound
+    (NativeTransferRound, NO_MAJORITY): NativeTransferRound
+    (NativeTransferRound, ROUND_TIMEOUT): NativeTransferRound
+
+File: handlers.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the handlers for the skill of LearningAbciApp."""
+
+from packages.valory.skills.abstract_round_abci.handlers import (
+    ABCIRoundHandler as BaseABCIRoundHandler,
+)
+from packages.valory.skills.abstract_round_abci.handlers import (
+    ContractApiHandler as BaseContractApiHandler,
+)
+from packages.valory.skills.abstract_round_abci.handlers import (
+    HttpHandler as BaseHttpHandler,
+)
+from packages.valory.skills.abstract_round_abci.handlers import (
+    IpfsHandler as BaseIpfsHandler,
+)
+from packages.valory.skills.abstract_round_abci.handlers import (
+    LedgerApiHandler as BaseLedgerApiHandler,
+)
+from packages.valory.skills.abstract_round_abci.handlers import (
+    SigningHandler as BaseSigningHandler,
+)
+from packages.valory.skills.abstract_round_abci.handlers import (
+    TendermintHandler as BaseTendermintHandler,
+)
+
+
+ABCIHandler = BaseABCIRoundHandler
+HttpHandler = BaseHttpHandler
+SigningHandler = BaseSigningHandler
+LedgerApiHandler = BaseLedgerApiHandler
+ContractApiHandler = BaseContractApiHandler
+TendermintHandler = BaseTendermintHandler
+IpfsHandler = BaseIpfsHandler
+
+
+File: __init__.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the implementation of the learning skill."""
+
+from aea.configurations.base import PublicId
+
+
+PUBLIC_ID = PublicId.from_str("valory/learning_abci:0.1.0")
+
+
+File: payloads.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the transaction payloads of the LearningAbciApp."""
+
+from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
+
+from packages.valory.skills.abstract_round_abci.base import BaseTxPayload
+
+
+@dataclass(frozen=True)
+class DataPullPayload(BaseTxPayload):
+    """Represent a transaction payload for the DataPullRound."""
+
+    price: Optional[float]
+    price_ipfs_hash: Optional[str]
+    native_balance: Optional[float]
+    erc20_balance: Optional[float]
+
+
+@dataclass(frozen=True)
+class DecisionMakingPayload(BaseTxPayload):
+    """Represent a transaction payload for the DecisionMakingRound."""
+
+    event: str
+
+@dataclass(frozen=True)
+class TxPreparationPayload(BaseTxPayload):
+    """Represent a transaction payload for the TxPreparationRound."""
+
+    tx_submitter: Optional[str] = None
+    tx_hash: Optional[str] = None
+
+@dataclass(frozen=True)
+class NativeTransferPayload(BaseTxPayload):
+    """Represent a transaction payload for the NativeTransferRound."""
+
+    tx_submitter: Optional[str]
+    tx_hash: Optional[str]
+
+@dataclass(frozen=True)
+class TokenBalanceCheckPayload(BaseTxPayload):
+    """Payload for token balance check."""
+    token_balance: Optional[float]
+
+@dataclass(frozen=True)
+class TokenDepositPayload(BaseTxPayload):
+    """Represent a transaction payload for token deposit."""
+    tx_submitter: Optional[str]
+    tx_hash: Optional[str]
+
+File: skill.yaml
+------------------------------
+name: learning_abci
+author: valory
+version: 0.1.0
+type: skill
+description: A learning skill.
+license: Apache-2.0
+aea_version: '>=1.0.0, <2.0.0'
+fingerprint:
+  __init__.py: bafybeiho3lkochqpmes4f235chq26oggmwnol3vjuvhosleoubbjirbwaq
+  behaviours.py: bafybeifvfxitmbwkbgqsqqxvke4eogk5pr5yvmohrxhdxf34ccqpo7qskm
+  dialogues.py: bafybeifqjbumctlffx2xvpga2kcenezhe47qhksvgmaylyp5ypwqgfar5u
+  fsm_specification.yaml: bafybeichhncjjmqzdzvsj2wduguct7zkrar4r5j6ohpimuodhsa7lhmgxq
+  handlers.py: bafybeigjadr4thz6hfpfx5abezbwnqhbxmachf4efasrn4z2vqhsqgnyvi
+  models.py: bafybeifzqzuddw73euqe7gf7wiuucrxaumm3nd6bycp2nfqshajauavhay
+  payloads.py: bafybeic2makbq6f7y6i2ihnkc3mp4nha6il4hj7r5uyqxztpdcpefmo4wm
+  rounds.py: bafybeibpvf764gyu7pwcu4xzaekzctotwbmwzmgj3m4w72vebxllnqkdcu
+fingerprint_ignore_patterns: []
+connections: []
+contracts:
+- valory/gnosis_safe:0.1.0:bafybeib375xmvcplw7ageic2np3hq4yqeijrvd5kl7rrdnyvswats6ngmm
+- valory/erc20:0.1.0:bafybeibyhuxozkkvsymqz45vxixr3w3bs4vsvxg2nsx5jlyi3f3hhn7ezi
+- valory/multisend:0.1.0:bafybeig5byt5urg2d2bsecufxe5ql7f4mezg3mekfleeh32nmuusx66p4y
+- valory/token_reader:0.1.0:bafybeihgr6nhh4lcrmheaggoks377wwo3ltaae6bcqat7x3fd6iztezdue
+protocols:
+- valory/contract_api:1.0.0:bafybeidgu7o5llh26xp3u3ebq3yluull5lupiyeu6iooi2xyymdrgnzq5i
+- valory/ledger_api:1.0.0:bafybeihdk6psr4guxmbcrc26jr2cbgzpd5aljkqvpwo64bvaz7tdti2oni
+skills:
+- valory/abstract_round_abci:0.1.0:bafybeiajjzuh6vf23crp55humonknirvv2f4s3dmdlfzch6tc5ow52pcgm
+- valory/transaction_settlement_abci:0.1.0:bafybeielv6eivt2z6nforq43xewl2vmpfwpdu2s2vfogobziljnwsclmlm
+behaviours:
+  main:
+    args: {}
+    class_name: LearningRoundBehaviour
+handlers:
+  abci:
+    args: {}
+    class_name: ABCIHandler
+  contract_api:
+    args: {}
+    class_name: ContractApiHandler
+  http:
+    args: {}
+    class_name: HttpHandler
+  ipfs:
+    args: {}
+    class_name: IpfsHandler
+  ledger_api:
+    args: {}
+    class_name: LedgerApiHandler
+  signing:
+    args: {}
+    class_name: SigningHandler
+  tendermint:
+    args: {}
+    class_name: TendermintHandler
+models:
+  abci_dialogues:
+    args: {}
+    class_name: AbciDialogues
+  benchmark_tool:
+    args:
+      log_dir: /logs
+    class_name: BenchmarkTool
+  contract_api_dialogues:
+    args: {}
+    class_name: ContractApiDialogues
+  http_dialogues:
+    args: {}
+    class_name: HttpDialogues
+  ipfs_dialogues:
+    args: {}
+    class_name: IpfsDialogues
+  ledger_api_dialogues:
+    args: {}
+    class_name: LedgerApiDialogues
+  params:
+    args:
+      cleanup_history_depth: 1
+      cleanup_history_depth_current: null
+      drand_public_key: 868f005eb8e6e4ca0a47c8a77ceaa5309a47978a7c71bc5cce96366b5d7a569937c529eeda66c7293784a9402801af31
+      finalize_timeout: 60.0
+      genesis_config:
+        chain_id: chain-c4daS1
+        consensus_params:
+          block:
+            max_bytes: '22020096'
+            max_gas: '-1'
+            time_iota_ms: '1000'
+          evidence:
+            max_age_duration: '172800000000000'
+            max_age_num_blocks: '100000'
+            max_bytes: '1048576'
+          validator:
+            pub_key_types:
+            - ed25519
+          version: {}
+        genesis_time: '2022-05-20T16:00:21.735122717Z'
+        voting_power: '10'
+      history_check_timeout: 1205
+      ipfs_domain_name: null
+      keeper_allowed_retries: 3
+      keeper_timeout: 30.0
+      max_attempts: 10
+      max_healthcheck: 120
+      on_chain_service_id: null
+      request_retry_delay: 1.0
+      request_timeout: 10.0
+      reset_pause_duration: 10
+      reset_tendermint_after: 2
+      retry_attempts: 400
+      retry_timeout: 3
+      round_timeout_seconds: 30.0
+      service_id: learning
+      service_registry_address: null
+      setup:
+        all_participants:
+        - '0x0000000000000000000000000000000000000000'
+        consensus_threshold: null
+        safe_contract_address: '0x0000000000000000000000000000000000000000'
+      share_tm_config_on_startup: false
+      sleep_time: 1
+      tendermint_check_sleep_delay: 3
+      tendermint_com_url: http://localhost:8080
+      tendermint_max_retries: 5
+      tendermint_p2p_url: localhost:26656
+      tendermint_url: http://localhost:26657
+      tx_timeout: 10.0
+      validate_timeout: 1205
+      service_endpoint_base: https://learning.autonolas.tech/
+      coingecko_price_template: https://api.coingecko.com/api/v3/simple/price?ids=autonolas&vs_currencies=usd&x_cg_demo_api_key={api_key}
+      coingecko_api_key: null
+      transfer_target_address: '0x0000000000000000000000000000000000000000'
+      olas_token_address: '0xcE11e14225575945b8E6Dc0D4F2dD4C570f79d9f'
+      multisend_address: '0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761'
+    class_name: Params
+  coingecko_specs:
+    args:
+      api_id: coingecko
+      headers:
+        Accept: application/json
+      method: GET
+      parameters:
+        ids: autonolas
+        vs_currencies: usd
+        x_cg_demo_api_key: null
+      response_key: autonolas
+      response_type: dict
+      retries: 5
+      url: https://api.coingecko.com/api/v3/simple/price
+    class_name: CoingeckoSpecs
+  requests:
+    args: {}
+    class_name: Requests
+  signing_dialogues:
+    args: {}
+    class_name: SigningDialogues
+  state:
+    args: {}
+    class_name: SharedState
+  tendermint_dialogues:
+    args: {}
+    class_name: TendermintDialogues
+dependencies: {}
+is_abstract: true
+customs: []
+
+
+File: dialogues.py
+------------------------------
+# -*- coding: utf-8 -*-
+# ------------------------------------------------------------------------------
+#
+#   Copyright 2024 Valory AG
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# ------------------------------------------------------------------------------
+
+"""This module contains the dialogues of the LearningAbciApp."""
+
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    AbciDialogue as BaseAbciDialogue,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    AbciDialogues as BaseAbciDialogues,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    ContractApiDialogue as BaseContractApiDialogue,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    ContractApiDialogues as BaseContractApiDialogues,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    HttpDialogue as BaseHttpDialogue,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    HttpDialogues as BaseHttpDialogues,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    IpfsDialogue as BaseIpfsDialogue,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    IpfsDialogues as BaseIpfsDialogues,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    LedgerApiDialogue as BaseLedgerApiDialogue,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    LedgerApiDialogues as BaseLedgerApiDialogues,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    SigningDialogue as BaseSigningDialogue,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    SigningDialogues as BaseSigningDialogues,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    TendermintDialogue as BaseTendermintDialogue,
+)
+from packages.valory.skills.abstract_round_abci.dialogues import (
+    TendermintDialogues as BaseTendermintDialogues,
+)
+
+
+AbciDialogue = BaseAbciDialogue
+AbciDialogues = BaseAbciDialogues
+
+
+HttpDialogue = BaseHttpDialogue
+HttpDialogues = BaseHttpDialogues
+
+
+SigningDialogue = BaseSigningDialogue
+SigningDialogues = BaseSigningDialogues
+
+
+LedgerApiDialogue = BaseLedgerApiDialogue
+LedgerApiDialogues = BaseLedgerApiDialogues
+
+
+ContractApiDialogue = BaseContractApiDialogue
+ContractApiDialogues = BaseContractApiDialogues
+
+
+TendermintDialogue = BaseTendermintDialogue
+TendermintDialogues = BaseTendermintDialogues
+
+
+IpfsDialogue = BaseIpfsDialogue
+IpfsDialogues = BaseIpfsDialogues
+
+
