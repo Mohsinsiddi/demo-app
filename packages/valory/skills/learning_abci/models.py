@@ -61,6 +61,7 @@ class Params(BaseParams):
 
         self.spacex_api_url = kwargs.get("spacex_api_url", "https://api.spacexdata.com/v4/company")
 
+        self.sushiswap_router_address = kwargs.get("sushiswap_router_address", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
 
         super().__init__(*args, **kwargs)
 

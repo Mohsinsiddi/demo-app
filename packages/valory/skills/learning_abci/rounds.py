@@ -40,6 +40,7 @@ from packages.valory.skills.learning_abci.payloads import (
     NativeTransferPayload,
     TokenBalanceCheckPayload,
     TokenDepositPayload,
+    TokenSwapPayload,
     TxPreparationPayload,
 )
 
@@ -125,6 +126,11 @@ class SynchronizedData(BaseSynchronizedData):
     def participant_to_deposit_round(self) -> DeserializedCollection:
         """Get the participants to deposit round."""
         return self._get_deserialized("participant_to_deposit_round")
+    
+    @property
+    def participant_to_swap_round(self) -> DeserializedCollection:
+        """Get the participants to swap round."""
+        return self._get_deserialized("participant_to_swap_round")
 
 class DataPullRound(CollectSameUntilThresholdRound):
     """DataPullRound"""
@@ -223,6 +229,17 @@ class TxPreparationRound(CollectSameUntilThresholdRound):
 
     # Event.ROUND_TIMEOUT  # this needs to be referenced for static checkers
 
+class TokenSwapRound(CollectSameUntilThresholdRound):
+    """TokenSwapRound"""
+    payload_class = TokenSwapPayload
+    synchronized_data_class = SynchronizedData
+    done_event = Event.DONE
+    no_majority_event = Event.NO_MAJORITY
+    collection_key = get_name(SynchronizedData.participant_to_swap_round)
+    selection_key = (
+        get_name(SynchronizedData.tx_submitter),
+        get_name(SynchronizedData.most_voted_tx_hash),
+    )
 
 class FinishedDecisionMakingRound(DegenerateRound):
     """FinishedDecisionMakingRound"""
@@ -246,32 +263,37 @@ class LearningAbciApp(AbciApp[Event]):
             Event.DONE: TokenBalanceCheckRound,
         },
         TokenBalanceCheckRound: {
-        Event.NO_MAJORITY: TokenBalanceCheckRound,
-        Event.ROUND_TIMEOUT: TokenBalanceCheckRound,
-        Event.DONE: TokenDepositRound,
+            Event.NO_MAJORITY: TokenBalanceCheckRound,
+            Event.ROUND_TIMEOUT: TokenBalanceCheckRound,
+            Event.DONE: TokenSwapRound,  # Changed from TokenDepositRound
         },
-        TokenDepositRound: {
-            Event.NO_MAJORITY: TokenDepositRound,
-            Event.ROUND_TIMEOUT: TokenDepositRound,
-            Event.DONE: DecisionMakingRound,
+        TokenSwapRound: {
+            Event.NO_MAJORITY: TokenSwapRound,
+            Event.ROUND_TIMEOUT: TokenSwapRound,
+            Event.DONE: FinishedTxPreparationRound,  # Next round after swap
         },
-        DecisionMakingRound: {
-            Event.NO_MAJORITY: DecisionMakingRound,
-            Event.ROUND_TIMEOUT: DecisionMakingRound,
-            Event.DONE: FinishedDecisionMakingRound,
-            Event.ERROR: FinishedDecisionMakingRound,
-            Event.TRANSACT: TxPreparationRound,
-        },
-        TxPreparationRound: {
-            Event.NO_MAJORITY: TxPreparationRound,
-            Event.ROUND_TIMEOUT: TxPreparationRound,
-            Event.DONE: NativeTransferRound,
-        },
-        NativeTransferRound: {
-            Event.DONE: FinishedTxPreparationRound,
-            Event.NO_MAJORITY: NativeTransferRound,
-            Event.ROUND_TIMEOUT: NativeTransferRound,
-        },
+        # TokenDepositRound: {
+        #     Event.NO_MAJORITY: TokenDepositRound,
+        #     Event.ROUND_TIMEOUT: TokenDepositRound,
+        #     Event.DONE: DecisionMakingRound,
+        # },
+        # DecisionMakingRound: {
+        #     Event.NO_MAJORITY: DecisionMakingRound,
+        #     Event.ROUND_TIMEOUT: DecisionMakingRound,
+        #     Event.DONE: FinishedDecisionMakingRound,
+        #     Event.ERROR: FinishedDecisionMakingRound,
+        #     Event.TRANSACT: TxPreparationRound,
+        # },
+        # TxPreparationRound: {
+        #     Event.NO_MAJORITY: TxPreparationRound,
+        #     Event.ROUND_TIMEOUT: TxPreparationRound,
+        #     Event.DONE: NativeTransferRound,
+        # },
+        # NativeTransferRound: {
+        #     Event.DONE: FinishedTxPreparationRound,
+        #     Event.NO_MAJORITY: NativeTransferRound,
+        #     Event.ROUND_TIMEOUT: NativeTransferRound,
+        # },
         FinishedDecisionMakingRound: {},
         FinishedTxPreparationRound: {},
     }

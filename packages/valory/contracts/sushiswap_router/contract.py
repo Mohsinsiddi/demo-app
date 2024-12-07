@@ -38,20 +38,21 @@ class SushiswapRouter(Contract):
     def get_amounts_out(
         cls,
         ledger_api: EthereumApi,
-        router_address: str,
+        contract_address: str,
         amount_in: int,
         path: List[str],
     ) -> JSONLike:
         """Get expected output amount for a swap."""
-        contract_instance = cls.get_instance(ledger_api, router_address)
-        amounts = contract_instance.functions.getAmountsOut(amount_in, path).call()
+        contract_instance = cls.get_instance(ledger_api, contract_address)
+        get_amounts_out = getattr(contract_instance.functions, "getAmountsOut")  # noqa
+        amounts = get_amounts_out(amount_in, path).call()
         return {"amounts": amounts}
 
     @classmethod
     def build_swap_exact_tokens_for_tokens_tx(
         cls,
         ledger_api: EthereumApi,
-        router_address: str,
+        contract_address: str,
         amount_in: int,
         amount_out_min: int,
         path: List[str],
@@ -59,7 +60,7 @@ class SushiswapRouter(Contract):
         deadline: int,
     ) -> Dict[str, bytes]:
         """Build swap transaction data."""
-        contract_instance = cls.get_instance(ledger_api, router_address)
+        contract_instance = cls.get_instance(ledger_api, contract_address)
         data = contract_instance.encodeABI(
             fn_name="swapExactTokensForTokens",
             args=[
@@ -76,14 +77,14 @@ class SushiswapRouter(Contract):
     def build_swap_exact_eth_for_tokens_tx(
         cls,
         ledger_api: EthereumApi,
-        router_address: str,
+        contract_address: str,
         amount_out_min: int,
         path: List[str],
         to_address: str,
         deadline: int,
     ) -> Dict[str, bytes]:
         """Build swap ETH for tokens transaction data."""
-        contract_instance = cls.get_instance(ledger_api, router_address)
+        contract_instance = cls.get_instance(ledger_api, contract_address)
         data = contract_instance.encodeABI(
             fn_name="swapExactETHForTokens",
             args=[

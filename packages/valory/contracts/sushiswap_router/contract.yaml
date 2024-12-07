@@ -6,10 +6,10 @@ description: A Router contract to swap tokens
 license: Apache-2.0
 aea_version: '>=1.0.0, <2.0.0'
 fingerprint:
-  README.md: bafybeifmfma6rglvpa22odtozyosnp5mwljum64utxip2wgmezuhnjjjyi
+  README.md: bafybeih2mfxflbi7g5so3x6pxhype2wskzlj4lszbuukpctutguxazkz2y
   __init__.py: bafybeif5vpc3dfrlxlch7brbhmdwksabyzddpfqgm56vdbbkek3t3br6ke
-  build/sushiswap_router.json: bafybeiemn5b5nszuss7xj6lmvmjuendltp6wz7ubihdvd7c6wqw4bohbpa
-  contract.py: bafybeig5ngdzhnb5yg5egak4qjyjjhzhzynttskheg5jyqdej6y74chx3a
+  build/sushiswap_router.json: bafybeign7zillyhsy2czyityycaefur73akldaxwdsybuai2x5uwznpxfq
+  contract.py: bafybeiff7zt4qffgclevzlahm2dpvlttonp7l4h7g3b4cqonxuffzh46da
 fingerprint_ignore_patterns: []
 contracts: []
 class_name: SushiswapRouter

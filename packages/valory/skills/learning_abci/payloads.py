@@ -65,3 +65,9 @@ class TokenDepositPayload(BaseTxPayload):
     """Represent a transaction payload for token deposit."""
     tx_submitter: Optional[str]
     tx_hash: Optional[str]
+
+@dataclass(frozen=True)
+class TokenSwapPayload(BaseTxPayload):
+    """Represent a transaction payload for token swap."""
+    tx_submitter: Optional[str]
+    tx_hash: Optional[str]    
