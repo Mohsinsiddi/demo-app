@@ -1,0 +1,17 @@
+alphabet_in:
+- DONE
+- NO_MAJORITY
+- ROUND_TIMEOUT
+default_start_state: SpaceXDataRound
+final_states:
+- FinishedDataCollectionRound
+label: DataCollectionAbciApp
+start_states:
+- SpaceXDataRound
+states:
+- SpaceXDataRound
+- FinishedDataCollectionRound
+transition_func:
+    (SpaceXDataRound, DONE): FinishedDataCollectionRound
+    (SpaceXDataRound, NO_MAJORITY): SpaceXDataRound
+    (SpaceXDataRound, ROUND_TIMEOUT): SpaceXDataRound
