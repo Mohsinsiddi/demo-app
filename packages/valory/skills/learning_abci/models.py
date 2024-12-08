@@ -63,6 +63,8 @@ class Params(BaseParams):
 
         self.sushiswap_router_address = kwargs.get("sushiswap_router_address", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
 
+        self.monitored_address = kwargs.get("monitored_address","0x4e9a8fE0e0499c58a53d3C2A2dE25aaCF9b925A8")
+
         super().__init__(*args, **kwargs)
 
 

@@ -20,45 +20,32 @@
 """This module contains the transaction payloads of the LearningAbciApp."""
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 from packages.valory.skills.abstract_round_abci.base import BaseTxPayload
 
 
 @dataclass(frozen=True)
-class DataPullPayload(BaseTxPayload):
-    """Represent a transaction payload for the DataPullRound."""
-
-    price: Optional[float]
-    price_ipfs_hash: Optional[str]
-    native_balance: Optional[float]
-    erc20_balance: Optional[float]
-
-
-@dataclass(frozen=True)
-class DecisionMakingPayload(BaseTxPayload):
-    """Represent a transaction payload for the DecisionMakingRound."""
-
-    event: str
-
-@dataclass(frozen=True)
-class TxPreparationPayload(BaseTxPayload):
-    """Represent a transaction payload for the TxPreparationRound."""
-
-    tx_submitter: Optional[str] = None
-    tx_hash: Optional[str] = None
-
-@dataclass(frozen=True)
-class NativeTransferPayload(BaseTxPayload):
-    """Represent a transaction payload for the NativeTransferRound."""
-
-    tx_submitter: Optional[str]
-    tx_hash: Optional[str]
-
-@dataclass(frozen=True)
 class TokenBalanceCheckPayload(BaseTxPayload):
     """Payload for token balance check."""
+    sender: str
     token_balance: Optional[float]
+    native_balance: Optional[float]
+    usdc_price: Optional[float]
+    price_ipfs_hash: Optional[str]
+
+
+@dataclass(frozen=True)
+class DepositDecisionMakingPayload(BaseTxPayload):
+    """Represent a transaction payload for deposit decision making."""
+    event: str
+
+
+@dataclass(frozen=True)
+class SwapDecisionMakingPayload(BaseTxPayload):
+    """Represent a transaction payload for swap decision making."""
+    event: str
+
 
 @dataclass(frozen=True)
 class TokenDepositPayload(BaseTxPayload):
@@ -66,8 +53,9 @@ class TokenDepositPayload(BaseTxPayload):
     tx_submitter: Optional[str]
     tx_hash: Optional[str]
 
+
 @dataclass(frozen=True)
 class TokenSwapPayload(BaseTxPayload):
     """Represent a transaction payload for token swap."""
     tx_submitter: Optional[str]
-    tx_hash: Optional[str]    
+    tx_hash: Optional[str]

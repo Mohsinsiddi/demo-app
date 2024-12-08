@@ -38,7 +38,7 @@ import packages.valory.skills.data_collection_abci.rounds as DataCollectionAbci
 
 abci_app_transition_mapping: AbciAppTransitionMapping = {
     RegistrationAbci.FinishedRegistrationRound: DataCollectionAbci.SpaceXDataRound,  # Start with SpaceX data
-    DataCollectionAbci.FinishedSpaceXRound: LearningAbci.DataPullRound,  # Then go to Learning
+    DataCollectionAbci.FinishedSpaceXRound: LearningAbci.TokenBalanceCheckRound,  # Then go to Learning
     LearningAbci.FinishedDecisionMakingRound: ResetAndPauseAbci.ResetAndPauseRound,
     LearningAbci.FinishedTxPreparationRound: TxSettlementAbci.RandomnessTransactionSubmissionRound,
     TxSettlementAbci.FinishedTransactionSubmissionRound: ResetAndPauseAbci.ResetAndPauseRound,
