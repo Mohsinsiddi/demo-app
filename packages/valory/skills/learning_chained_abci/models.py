@@ -38,9 +38,6 @@ from packages.valory.skills.learning_chained_abci.composition import (
 from packages.valory.skills.reset_pause_abci.rounds import Event as ResetPauseEvent
 from packages.valory.skills.termination_abci.models import TerminationParams
 
-from packages.valory.skills.data_collection_abci.rounds import Event as DataCollectionEvent
-from packages.valory.skills.data_collection_abci.models import Params as DataCollectionParams
-
 
 Requests = BaseRequests
 BenchmarkTool = BaseBenchmarkTool
@@ -72,15 +69,10 @@ class SharedState(BaseSharedState):
             self.context.params.round_timeout_seconds * MULTIPLIER
         )
 
-        LearningChainedSkillAbciApp.event_to_timeout[DataCollectionEvent.ROUND_TIMEOUT] = (
-        self.context.params.round_timeout_seconds * MULTIPLIER
-    )
-
 
 class Params(  # pylint: disable=too-many-ancestors
     LearningParams,
-    TerminationParams,
-    DataCollectionParams
+    TerminationParams
 ):
     """A model to represent params for multiple abci apps."""
 

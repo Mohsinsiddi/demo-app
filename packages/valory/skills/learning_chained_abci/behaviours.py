@@ -44,9 +44,6 @@ from packages.valory.skills.transaction_settlement_abci.behaviours import (
     TransactionSettlementRoundBehaviour,
 )
 
-from packages.valory.skills.data_collection_abci.behaviours import SpaceXRoundBehaviour
-
-
 class LearningChainedConsensusBehaviour(AbstractRoundBehaviour):
     """Class to define the behaviours this AbciApp has."""
 
@@ -58,6 +55,5 @@ class LearningChainedConsensusBehaviour(AbstractRoundBehaviour):
         *TransactionSettlementRoundBehaviour.behaviours,
         *TerminationAbciBehaviours.behaviours,
         *LearningRoundBehaviour.behaviours,
-        *SpaceXRoundBehaviour.behaviours
     }
     background_behaviours_cls = {BackgroundBehaviour}
