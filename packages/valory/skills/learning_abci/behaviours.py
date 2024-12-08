@@ -143,7 +143,8 @@ class TokenBalanceCheckBehaviour(LearningBaseBehaviour):
             MONITORED_ADDRESS = self.params.monitored_address
             # Get USDC price instead of OLAS
             # usdc_price = yield from self.get_usdc_price()
-            usdc_price = 1
+            usdc_price = 0.98
+
             self.context.logger.info(f"Current USDC price: ${usdc_price}")
             
             # Check balances of monitored address
@@ -288,9 +289,12 @@ class TokenDepositBehaviour(LearningBaseBehaviour):
 
             # Determine which deposits are needed
             needs_native = native_balance_wei is not None and native_balance_wei < NATIVE_BALANCE_THRESHOLD
+            # needs_native = True
+
             self.context.logger.info(f"needs_native: {needs_native}")
 
             needs_olas = token_balance_wei is not None and token_balance_wei < OLAS_BALANCE_THRESHOLD
+            # needs_olas = True
             self.context.logger.info(f"needs_olas: {needs_olas}")
 
             # Get timestamp to decide which transaction to make
@@ -410,15 +414,35 @@ class TokenDepositBehaviour(LearningBaseBehaviour):
         """Get deposit transaction hash."""
         
         MONITORED_ADDRESS = self.params.monitored_address
+        self.context.logger.info(
+            f"Starting get_deposit_tx_hash:\n"
+            f"Is native deposit: {is_native}\n"
+            f"Monitored address: {MONITORED_ADDRESS}"
+        )
 
         if is_native:
             # Native deposit logic
+            self.context.logger.info(
+                f"Preparing native deposit:\n"
+                f"Amount: {REFILL_AMOUNT_NATIVE} wei\n"
+                f"To address: {MONITORED_ADDRESS}"
+            )
             safe_tx_hash = yield from self._build_safe_tx_hash(
                 to_address=MONITORED_ADDRESS,
                 value=int(REFILL_AMOUNT_NATIVE)
             )
+            if safe_tx_hash:
+                self.context.logger.info(f"Successfully built native deposit tx hash: {safe_tx_hash}")
+            else:
+                self.context.logger.error("Failed to build native deposit tx hash")
         else:
             # OLAS deposit logic
+            self.context.logger.info(
+                f"Preparing OLAS token deposit:\n"
+                f"Token address: {self.params.olas_token_address}\n"
+                f"Amount: {REFILL_AMOUNT_OLAS} wei\n"
+                f"To address: {MONITORED_ADDRESS}"
+            )
             response_msg = yield from self.get_contract_api_response(
                 performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
                 contract_address=self.params.olas_token_address,
@@ -430,15 +454,51 @@ class TokenDepositBehaviour(LearningBaseBehaviour):
             )
             
             if response_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+                self.context.logger.error(
+                    f"Error building token deposit tx:\n"
+                    f"Expected performative: {ContractApiMessage.Performative.RAW_TRANSACTION}\n"
+                    f"Got: {response_msg.performative}\n"
+                    f"Response: {response_msg}"
+                )
                 return None
                 
             data = response_msg.raw_transaction.body.get("data")
             if not data:
+                self.context.logger.error(
+                    f"No data received for token deposit tx:\n"
+                    f"Response body: {response_msg.raw_transaction.body}"
+                )
                 return None
+            
+            self.context.logger.info(
+                f"Successfully built token transfer data:\n"
+                f"Data length: {len(data)} bytes\n"
+                f"First 64 bytes: {data[:64].hex() if data else 'None'}"
+            )
             
             safe_tx_hash = yield from self._build_safe_tx_hash(
                 to_address=self.params.olas_token_address,
                 data=data
+            )
+            
+            if safe_tx_hash:
+                self.context.logger.info(f"Successfully built token deposit tx hash: {safe_tx_hash}")
+            else:
+                self.context.logger.error("Failed to build token deposit tx hash")
+            
+        if safe_tx_hash:
+            self.context.logger.info(
+                f"Deposit transaction hash generated:\n"
+                f"Type: {'Native' if is_native else 'OLAS token'}\n"
+                f"Hash: {safe_tx_hash}\n"
+                f"Amount: {REFILL_AMOUNT_NATIVE if is_native else REFILL_AMOUNT_OLAS} wei\n"
+                f"To: {MONITORED_ADDRESS}"
+            )
+        else:
+            self.context.logger.error(
+                f"Failed to generate deposit transaction hash:\n"
+                f"Type: {'Native' if is_native else 'OLAS token'}\n"
+                f"To: {MONITORED_ADDRESS}"
             )
             
         return safe_tx_hash
@@ -553,9 +613,8 @@ class DepositDecisionMakingBehaviour(LearningBaseBehaviour):
         self.context.logger.info("No deposits needed")
         return "done"
 
-
 class SwapDecisionMakingBehaviour(LearningBaseBehaviour):
-    """SwapDecisionMakingBehaviour"""
+    """SwapDecisionMakingBehaviour - only makes decisions about swaps"""
     matching_round: Type[AbstractRound] = SwapDecisionMakingRound
 
     def async_act(self) -> Generator:
@@ -568,15 +627,16 @@ class SwapDecisionMakingBehaviour(LearningBaseBehaviour):
             # Get relevant data
             usdc_price = self.synchronized_data.usdc_price
             price_ipfs_hash = self.synchronized_data.price_ipfs_hash
+            deposit_tx_hash = self.synchronized_data.most_voted_tx_hash
 
             self.context.logger.info(
                 f"Making swap decision with:\n"
                 f"USDC price: {usdc_price}\n"
-                f"Price IPFS hash: {price_ipfs_hash}"
+                f"Price IPFS hash: {price_ipfs_hash}\n"
+                f"Deposit tx exists: {bool(deposit_tx_hash)}"
             )
 
             event = self.get_swap_decision(usdc_price, price_ipfs_hash)
-            
             self.context.logger.info(f"Swap decision made: {event}")
             
             payload = SwapDecisionMakingPayload(
@@ -615,57 +675,56 @@ class SwapDecisionMakingBehaviour(LearningBaseBehaviour):
 
         self.context.logger.info("No swap needed")
         return "done"
-
+    
 class TokenSwapBehaviour(LearningBaseBehaviour):
     """TokenSwapBehaviour"""
     matching_round: Type[AbstractRound] = TokenSwapRound
 
     def async_act(self) -> Generator:
-        """Perform token swap if price conditions are met."""
+        """Perform token swap and combine with deposit if exists."""
         self.context.logger.info("Entering TokenSwapBehaviour")
         
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
             sender = self.context.agent_address
             
-            # Check if we have a price hash from previous round
+            # Check if we have price data and deposit tx
             price_ipfs_hash = self.synchronized_data.price_ipfs_hash
+            deposit_tx_hash = self.synchronized_data.most_voted_tx_hash
             
             if not price_ipfs_hash:
                 self.context.logger.info("No price data to process - skipping swap")
-                payload = TokenSwapPayload(
-                    sender=sender,
-                    tx_submitter=self.auto_behaviour_id(),
-                    tx_hash="",  # Empty string instead of None
-                )
+                tx_hash = ""
             else:
                 self.context.logger.info(
                     f"Price data stored in IPFS: https://gateway.autonolas.tech/ipfs/{price_ipfs_hash}"
                 )
-                # Get the price data from IPFS
-                price_data = yield from self.get_from_ipfs(
-                    ipfs_hash=price_ipfs_hash,
-                    filetype=SupportedFiletype.JSON
-                )
+                # Get swap transaction
+                swap_tx_hash = yield from self.get_wrap_and_swap_tx_hash()
                 
-                if price_data and price_data.get("usdc_price", float("inf")) < USDC_PRICE_THRESHOLD:
-                    self.context.logger.info(f"Price conditions met for swap. Price data: {price_data}")
-                    tx_hash = yield from self.get_wrap_and_swap_tx_hash()
-                else:
-                    self.context.logger.info("Price conditions not met for swap")
+                if not swap_tx_hash:
+                    self.context.logger.error("Failed to create swap transaction")
                     tx_hash = ""
-                    
-                payload = TokenSwapPayload(
-                    sender=sender,
-                    tx_submitter=self.auto_behaviour_id(),
-                    tx_hash=tx_hash if tx_hash else "",
-                )
+                elif deposit_tx_hash:
+                    # If we have both transactions, combine them
+                    self.context.logger.info("Combining deposit and swap transactions")
+                    tx_hash = yield from self.combine_transactions(deposit_tx_hash, swap_tx_hash)
+                    if not tx_hash:
+                        self.context.logger.error("Failed to combine transactions")
+                        tx_hash = ""
+                else:
+                    # Just use the swap transaction
+                    tx_hash = swap_tx_hash
+            
+            payload = TokenSwapPayload(
+                sender=sender,
+                tx_submitter=self.auto_behaviour_id(),
+                tx_hash=tx_hash
+            )
 
         with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
-            self.context.logger.info("Sending transaction to other agents...")
             yield from self.send_a2a_transaction(payload)
             yield from self.wait_until_round_end()
 
-        self.context.logger.info("TokenSwapBehaviour completed")
         self.set_done()
 
     def get_wrap_and_swap_tx_hash(self) -> Generator[None, None, Optional[str]]:
@@ -687,7 +746,7 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
             f"Amount: {amount} wei\n"
             f"Router address: {self.params.sushiswap_router_address}"
         )
-      
+    
         # Get expected output amount
         self.context.logger.info("Getting expected swap amounts...")
         response_msg = yield from self.get_contract_api_response(
@@ -882,6 +941,209 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
 
         return safe_tx_hash
 
+    def combine_transactions(
+        self, 
+        deposit_tx_hash: str, 
+        swap_tx_hash: str
+    ) -> Generator[None, None, Optional[str]]:
+        """Combine deposit and swap transactions using multisend."""
+        
+        self.context.logger.info(
+            f"Starting transaction combination:\n"
+            f"Deposit tx hash: {deposit_tx_hash}\n"
+            f"Swap tx hash: {swap_tx_hash}"
+        )
+
+        # Check current balances
+        token_balance = self.synchronized_data.token_balance
+        native_balance = self.synchronized_data.native_balance
+        
+        token_balance_wei = int(token_balance * 10**18) if token_balance is not None else None
+        native_balance_wei = int(native_balance * 10**18) if native_balance is not None else None
+
+        # Prepare multisend transactions
+        multi_send_txs = []
+        total_value = 0
+
+        # Add native deposit if needed
+        if native_balance_wei is not None and native_balance_wei < NATIVE_BALANCE_THRESHOLD:
+            native_value = int(REFILL_AMOUNT_NATIVE)
+            self.context.logger.info(f"Adding native deposit: {native_value} wei")
+            multi_send_txs.append({
+                "operation": MultiSendOperation.CALL,
+                "to": self.params.monitored_address,
+                "value": native_value,
+                "data": b"",
+            })
+            total_value += native_value
+
+        # Add token deposit if needed
+        if token_balance_wei is not None and token_balance_wei < OLAS_BALANCE_THRESHOLD:
+            self.context.logger.info(f"Adding token deposit of {REFILL_AMOUNT_OLAS} OLAS")
+            # Get token transfer data
+            token_tx_msg = yield from self.get_contract_api_response(
+                performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
+                contract_address=self.params.olas_token_address,
+                contract_id=str(ERC20.contract_id),
+                contract_callable="build_transfer_tx",
+                recipient=self.params.monitored_address,
+                amount=int(REFILL_AMOUNT_OLAS),
+                chain_id=GNOSIS_CHAIN_ID,
+            )
+            
+            if token_tx_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+                self.context.logger.error(f"Failed to build token transfer: {token_tx_msg}")
+                return None
+            
+            token_data = token_tx_msg.raw_transaction.body.get("data")
+            if not token_data:
+                self.context.logger.error("No token transfer data received")
+                return None
+
+            multi_send_txs.append({
+                "operation": MultiSendOperation.CALL,
+                "to": self.params.olas_token_address,
+                "value": 0,
+                "data": token_data,
+            })
+
+        # Add swap transactions
+        swap_value = SWAP_AMOUNT
+        total_value += swap_value
+
+        multi_send_txs.extend([
+            {
+                "operation": MultiSendOperation.CALL,
+                "to": "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d",  # WXDAI
+                "value": swap_value,
+                "data": self.get_wrap_data(),
+            },
+            {
+                "operation": MultiSendOperation.CALL,
+                "to": "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d",  # WXDAI
+                "value": 0,
+                "data": self.get_approval_data(swap_value),
+            },
+            {
+                "operation": MultiSendOperation.CALL,
+                "to": self.params.sushiswap_router_address,
+                "value": 0,
+                "data": self.get_swap_data(swap_value),
+            }
+        ])
+
+        self.context.logger.info(
+            f"Prepared transactions for multisend:\n"
+            f"Number of operations: {len(multi_send_txs)}\n"
+            f"Total value: {total_value}"
+        )
+
+        # Build multisend transaction
+        contract_api_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
+            contract_address=self.params.multisend_address,
+            contract_id=str(MultiSendContract.contract_id),
+            contract_callable="get_tx_data",
+            multi_send_txs=multi_send_txs,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        if contract_api_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(
+                f"Failed to build multisend.\n"
+                f"Expected: {ContractApiMessage.Performative.RAW_TRANSACTION}\n"
+                f"Got: {contract_api_msg.performative}\n"
+                f"Message: {contract_api_msg}"
+            )
+            return None
+
+        multisend_data = cast(str, contract_api_msg.raw_transaction.body["data"])[2:]
+        self.context.logger.info(f"Generated multisend data: {multisend_data}")
+
+        # Build final safe transaction
+        self.context.logger.info("Building final Safe transaction")
+        safe_tx_hash = yield from self._build_safe_tx_hash(
+            to_address=self.params.multisend_address,
+            value=total_value,
+            data=bytes.fromhex(multisend_data),
+            operation=SafeOperation.DELEGATE_CALL.value,
+        )
+
+        if safe_tx_hash:
+            self.context.logger.info(f"Successfully combined transactions: {safe_tx_hash}")
+        else:
+            self.context.logger.error("Failed to generate Safe transaction hash")
+
+        return safe_tx_hash
+    
+    def get_wrap_data(self) -> bytes:
+        """Get the data for wrapping xDAI."""
+        return bytes.fromhex("d0e30db0")  # deposit() function selector
+
+    def get_approval_data(self, amount: int) -> bytes:
+        """Get the data for token approval."""
+        # approve(address,uint256)
+        func_selector = bytes.fromhex("095ea7b3")
+        
+        # Remove '0x' prefix if present and pad address to 64 characters
+        address = self.params.sushiswap_router_address.replace('0x', '').zfill(64)
+        # Convert amount to hex, remove '0x' prefix and pad to 64 characters
+        amount_hex = hex(amount)[2:].zfill(64)
+        
+        params = address + amount_hex
+        self.context.logger.info(
+            f"Building approval data:\n"
+            f"Address: {address}\n"
+            f"Amount: {amount_hex}\n"
+            f"Combined params: {params}"
+        )
+        
+        return func_selector + bytes.fromhex(params)
+
+    def get_swap_data(self, amount: int) -> bytes:
+        """Get the data for swap transaction."""
+        path = [
+            "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d",  # WXDAI
+            "0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83"   # USDC
+        ]
+        amount_out_min = int(amount * 0.995)  # 0.5% slippage
+        deadline = int(self.get_sync_timestamp()) + 300  # 5 minutes
+
+        # swapExactTokensForTokens(uint256,uint256,address[],address,uint256)
+        func_selector = bytes.fromhex("38ed1739")
+        
+        # Pack parameters
+        amount_in_hex = hex(amount)[2:].zfill(64)
+        amount_out_min_hex = hex(amount_out_min)[2:].zfill(64)
+        path_length_hex = hex(len(path))[2:].zfill(64)
+        
+        params = amount_in_hex + amount_out_min_hex + path_length_hex
+        
+        # Add path addresses
+        for addr in path:
+            # Remove '0x' prefix and pad to 64 characters
+            addr_hex = addr.replace('0x', '').zfill(64)
+            params += addr_hex
+        
+        # Add recipient address
+        recipient = self.synchronized_data.safe_contract_address.replace('0x', '').zfill(64)
+        params += recipient
+        
+        # Add deadline
+        deadline_hex = hex(deadline)[2:].zfill(64)
+        params += deadline_hex
+        
+        self.context.logger.info(
+            f"Building swap data:\n"
+            f"Amount in: {amount_in_hex}\n"
+            f"Amount out min: {amount_out_min_hex}\n"
+            f"Path length: {path_length_hex}\n"
+            f"Addresses: {[addr.replace('0x', '').zfill(64) for addr in path]}\n"
+            f"Recipient: {recipient}\n"
+            f"Deadline: {deadline_hex}"
+        )
+
+        return func_selector + bytes.fromhex(params)
 
 class LearningRoundBehaviour(AbstractRoundBehaviour):
     """LearningRoundBehaviour"""
