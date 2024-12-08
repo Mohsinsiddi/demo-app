@@ -187,8 +187,8 @@ The service uses a consensus-based approach where:
    SAFE_CONTRACT_ADDRESS_SINGLE=0x9076C7C2d751d1CE7F332744cc752f722E3cC6
    
    # Network & API Configuration
-   GNOSIS_LEDGER_RPC=https://virtual.gnosis.rpc.tenderly.co/f61f203b-adce-4639-8281-d2af89aff188
-   COINGECKO_API_KEY=CG-5Nn7yAS9qAvHZxKtGqfjQHri
+   GNOSIS_LEDGER_RPC=https://virtual.gnosis.rpc.tenderly.co/f61f203b-adce-46.............39-8281-d2af89aff188
+   COINGECKO_API_KEY=CG-5Nn7yAS9qA........vHZxKtGqfjQHri
    TRANSFER_TARGET_ADDRESS=0x4e9a8fE0e0499c58a53d3C2A2dE25aaCF9b925A8
    
    # Service Parameters
