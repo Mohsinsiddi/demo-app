@@ -17,7 +17,7 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This module contains the shared state for the abci skill of LearningChainedSkillAbciApp."""
+"""This module contains the shared state for the abci skill of MonitoringChainedSkillAbciApp."""
 
 from packages.valory.skills.abstract_round_abci.models import (
     BenchmarkTool as BaseBenchmarkTool,
@@ -26,14 +26,14 @@ from packages.valory.skills.abstract_round_abci.models import Requests as BaseRe
 from packages.valory.skills.abstract_round_abci.tests.data.dummy_abci.models import (
     RandomnessApi as BaseRandomnessApi,
 )
-from packages.valory.skills.learning_abci.models import (
+from packages.valory.skills.monitoring_abci.models import (
     CoingeckoSpecs as BaseCoingeckoSpecs,
 )
-from packages.valory.skills.learning_abci.models import Params as LearningParams
-from packages.valory.skills.learning_abci.models import SharedState as BaseSharedState
-from packages.valory.skills.learning_abci.rounds import Event as LearningEvent
-from packages.valory.skills.learning_chained_abci.composition import (
-    LearningChainedSkillAbciApp,
+from packages.valory.skills.monitoring_abci.models import Params as MonitoringParams
+from packages.valory.skills.monitoring_abci.models import SharedState as BaseSharedState
+from packages.valory.skills.monitoring_abci.rounds import Event as MonitoringEvent
+from packages.valory.skills.monitoring_chained_abci.composition import (
+    MonitoringChainedSkillAbciApp,
 )
 from packages.valory.skills.reset_pause_abci.rounds import Event as ResetPauseEvent
 from packages.valory.skills.termination_abci.models import TerminationParams
@@ -51,27 +51,27 @@ MULTIPLIER = 10
 class SharedState(BaseSharedState):
     """Keep the current shared state of the skill."""
 
-    abci_app_cls = LearningChainedSkillAbciApp  # type: ignore
+    abci_app_cls = MonitoringChainedSkillAbciApp  # type: ignore
 
     def setup(self) -> None:
         """Set up."""
         super().setup()
 
-        LearningChainedSkillAbciApp.event_to_timeout[
+        MonitoringChainedSkillAbciApp.event_to_timeout[
             ResetPauseEvent.ROUND_TIMEOUT
         ] = self.context.params.round_timeout_seconds
 
-        LearningChainedSkillAbciApp.event_to_timeout[
+        MonitoringChainedSkillAbciApp.event_to_timeout[
             ResetPauseEvent.RESET_AND_PAUSE_TIMEOUT
         ] = (self.context.params.reset_pause_duration + MARGIN)
 
-        LearningChainedSkillAbciApp.event_to_timeout[LearningEvent.ROUND_TIMEOUT] = (
+        MonitoringChainedSkillAbciApp.event_to_timeout[MonitoringEvent.ROUND_TIMEOUT] = (
             self.context.params.round_timeout_seconds * MULTIPLIER
         )
 
 
 class Params(  # pylint: disable=too-many-ancestors
-    LearningParams,
+    MonitoringParams,
     TerminationParams
 ):
     """A model to represent params for multiple abci apps."""

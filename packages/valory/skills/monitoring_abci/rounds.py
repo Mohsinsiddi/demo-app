@@ -17,7 +17,7 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This package contains the rounds of LearningAbciApp."""
+"""This package contains the rounds of MonitoringAbciApp."""
 
 from enum import Enum
 from typing import Dict, FrozenSet, Optional, Set, Tuple
@@ -34,7 +34,7 @@ from packages.valory.skills.abstract_round_abci.base import (
     EventToTimeout,
     get_name,
 )
-from packages.valory.skills.learning_abci.payloads import (
+from packages.valory.skills.monitoring_abci.payloads import (
     TokenBalanceCheckPayload,
     TokenDepositPayload,
     TokenSwapPayload,
@@ -44,7 +44,7 @@ from packages.valory.skills.learning_abci.payloads import (
 
 
 class Event(Enum):
-    """LearningAbciApp Events"""
+    """MonitoringAbciApp Events"""
     DONE = "done"
     ERROR = "error"
     TRANSACT = "transact"
@@ -204,8 +204,8 @@ class FinishedTxPreparationRound(DegenerateRound):
     """FinishedTxPreparationRound"""
 
 
-class LearningAbciApp(AbciApp[Event]):
-    """LearningAbciApp"""
+class MonitoringAbciApp(AbciApp[Event]):
+    """MonitoringAbciApp"""
 
     initial_round_cls: AppState = TokenBalanceCheckRound
     initial_states: Set[AppState] = {TokenBalanceCheckRound}

@@ -17,8 +17,9 @@
 #
 # ------------------------------------------------------------------------------
 
-"""Package for valory/learning_agent agent."""
-from pathlib import Path
+"""This module contains the implementation of the learning chained skill."""
+
+from aea.configurations.base import PublicId
 
 
-PACKAGE_DIR = Path(__file__).parent
+PUBLIC_ID = PublicId.from_str("valory/monitoring_chained_abci:0.1.0")

@@ -17,7 +17,7 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This package contains round behaviours of LearningChainedSkillAbci."""
+"""This package contains round behaviours of MonitoringChainedSkillAbci."""
 
 from typing import Set, Type
 
@@ -25,9 +25,9 @@ from packages.valory.skills.abstract_round_abci.behaviours import (
     AbstractRoundBehaviour,
     BaseBehaviour,
 )
-from packages.valory.skills.learning_abci.behaviours import LearningRoundBehaviour
-from packages.valory.skills.learning_chained_abci.composition import (
-    LearningChainedSkillAbciApp,
+from packages.valory.skills.monitoring_abci.behaviours import MonitoringRoundBehaviour
+from packages.valory.skills.monitoring_chained_abci.composition import (
+    MonitoringChainedSkillAbciApp,
 )
 from packages.valory.skills.registration_abci.behaviours import (
     AgentRegistrationRoundBehaviour,
@@ -44,16 +44,16 @@ from packages.valory.skills.transaction_settlement_abci.behaviours import (
     TransactionSettlementRoundBehaviour,
 )
 
-class LearningChainedConsensusBehaviour(AbstractRoundBehaviour):
+class MonitoringChainedConsensusBehaviour(AbstractRoundBehaviour):
     """Class to define the behaviours this AbciApp has."""
 
     initial_behaviour_cls = RegistrationStartupBehaviour
-    abci_app_cls = LearningChainedSkillAbciApp
+    abci_app_cls = MonitoringChainedSkillAbciApp
     behaviours: Set[Type[BaseBehaviour]] = {
         *AgentRegistrationRoundBehaviour.behaviours,
         *ResetPauseABCIConsensusBehaviour.behaviours,
         *TransactionSettlementRoundBehaviour.behaviours,
         *TerminationAbciBehaviours.behaviours,
-        *LearningRoundBehaviour.behaviours,
+        *MonitoringRoundBehaviour.behaviours,
     }
     background_behaviours_cls = {BackgroundBehaviour}

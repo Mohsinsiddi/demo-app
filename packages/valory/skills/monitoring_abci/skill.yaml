@@ -1,4 +1,4 @@
-name: learning_abci
+name: monitoring_abci
 author: valory
 version: 0.1.0
 type: skill
@@ -6,14 +6,14 @@ description: A learning skill.
 license: Apache-2.0
 aea_version: '>=1.0.0, <2.0.0'
 fingerprint:
-  __init__.py: bafybeiho3lkochqpmes4f235chq26oggmwnol3vjuvhosleoubbjirbwaq
-  behaviours.py: bafybeiczbw4zwqillakvrqrmfxantd7hwscq2sbp4gqk3dftxmec7olyr4
-  dialogues.py: bafybeifqjbumctlffx2xvpga2kcenezhe47qhksvgmaylyp5ypwqgfar5u
-  fsm_specification.yaml: bafybeichhncjjmqzdzvsj2wduguct7zkrar4r5j6ohpimuodhsa7lhmgxq
-  handlers.py: bafybeigjadr4thz6hfpfx5abezbwnqhbxmachf4efasrn4z2vqhsqgnyvi
-  models.py: bafybeicq3tlwx543oqe6vic7seueiesixgw4t2l45xd66ynzroi3xw6oqi
-  payloads.py: bafybeif6sqp7e7gx75gzmdlwbbarh2mvzmkbk5t4pu6vxuwagyvo3uda3a
-  rounds.py: bafybeigeweic4a6vyxw5q3gw4y2ynyiczp7wkrp3xc4njwyd6bybxnlt4e
+  __init__.py: bafybeibm7oqwexojgfqea53pessgoay6xo7hoijdpsfjbenxniaa6hqi7q
+  behaviours.py: bafybeiblybokf35xxkb637ckkvijwzztei7cs5bri45contxedqliu5oau
+  dialogues.py: bafybeicjsd7mos6hi3ceb2tvhnptndch7n7aspvz5asejfvgc5g2vmhg3y
+  fsm_specification.yaml: bafybeidr65jprafhntjj4bduvtjkflns7ab4zte3uppsfvn3z24ufpydte
+  handlers.py: bafybeih5ezxdp6mn3mrksghg5gxazu2n6frw6xsr7gdh2rf543vg6a6jey
+  models.py: bafybeiaattiwkpwthtbrtkh5ns55cqgcstkp6dxa4dcnmlvhug6rks2jvy
+  payloads.py: bafybeiexuy42c2d3rygp2k4yflrcio3yvreyoivoa2ehbr3gfmffi6kmvq
+  rounds.py: bafybeid2rpp5fo4qpdcqyqcbolkpyfxftzpsyhosrz7eocfxmliojhevki
 fingerprint_ignore_patterns: []
 connections: []
 contracts:
@@ -31,7 +31,7 @@ skills:
 behaviours:
   main:
     args: {}
-    class_name: LearningRoundBehaviour
+    class_name: MonitoringRoundBehaviour
 handlers:
   abci:
     args: {}
@@ -111,7 +111,7 @@ models:
       retry_attempts: 400
       retry_timeout: 3
       round_timeout_seconds: 30.0
-      service_id: learning
+      service_id: monitoring
       service_registry_address: null
       setup:
         all_participants:

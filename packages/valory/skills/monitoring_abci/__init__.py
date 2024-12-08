@@ -17,9 +17,9 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This module contains the implementation of the learning chained skill."""
+"""This module contains the implementation of the learning skill."""
 
 from aea.configurations.base import PublicId
 
 
-PUBLIC_ID = PublicId.from_str("valory/learning_chained_abci:0.1.0")
+PUBLIC_ID = PublicId.from_str("valory/monitoring_abci:0.1.0")

@@ -7,8 +7,8 @@ coverage.xml
 htmlcov
 *.egg-info
 packages/open_aea
-learning_agent
-learning_service
+monitoring_agent
+monitoring_service
 
 packages/valory/agents/*
 packages/valory/connections/*
@@ -17,10 +17,10 @@ packages/valory/services/*
 packages/valory/protocols/*
 packages/valory/skills/*
 
-!packages/valory/agents/learning_agent
-!packages/valory/services/learning_service
-!packages/valory/skills/learning_abci
-!packages/valory/skills/learning_chained_abci
+!packages/valory/agents/monitoring_agent
+!packages/valory/services/monitoring_service
+!packages/valory/skills/monitoring_abci
+!packages/valory/skills/monitoring_chained_abci
 !packages/valory/contracts/erc20
 !packages/valory/contracts/token_reader
 !packages/valory/contracts/sushiswap_router

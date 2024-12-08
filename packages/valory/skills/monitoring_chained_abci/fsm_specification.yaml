@@ -1,3 +1,4 @@
+```python
 alphabet_in:
 - CHECK_HISTORY
 - CHECK_LATE_ARRIVING_MESSAGE
@@ -16,19 +17,23 @@ alphabet_in:
 - ROUND_TIMEOUT
 - SUSPICIOUS_ACTIVITY
 - TRANSACT
+- SWAP
 - VALIDATE_TIMEOUT
 default_start_state: RegistrationStartupRound
-final_states: []
-label: LearningChainedSkillAbciApp
+final_states: 
+- FinishedDecisionMakingRound
+- FinishedTxPreparationRound
+label: MonitoringChainedSkillAbciApp
 start_states:
 - RegistrationRound
 - RegistrationStartupRound
 states:
-- DataPullRound
+- TokenBalanceCheckRound
 - CheckLateTxHashesRound
 - CheckTransactionHistoryRound
 - CollectSignatureRound
-- DecisionMakingRound
+- DepositDecisionMakingRound
+- SwapDecisionMakingRound
 - FinalizationRound
 - RandomnessTransactionSubmissionRound
 - RegistrationRound
@@ -40,11 +45,15 @@ states:
 - SelectKeeperTransactionSubmissionBRound
 - SynchronizeLateMessagesRound
 - TxPreparationRound
+- TokenDepositRound
+- TokenSwapRound
+- FinishedTxPreparationRound
+- FinishedDecisionMakingRound
 - ValidateTransactionRound
 transition_func:
-    (DataPullRound, DONE): DecisionMakingRound
-    (DataPullRound, NO_MAJORITY): DataPullRound
-    (DataPullRound, ROUND_TIMEOUT): DataPullRound
+    (TokenBalanceCheckRound, DONE): DepositDecisionMakingRound
+    (TokenBalanceCheckRound, NO_MAJORITY): TokenBalanceCheckRound
+    (TokenBalanceCheckRound, ROUND_TIMEOUT): TokenBalanceCheckRound
     (CheckLateTxHashesRound, CHECK_LATE_ARRIVING_MESSAGE): SynchronizeLateMessagesRound
     (CheckLateTxHashesRound, CHECK_TIMEOUT): CheckLateTxHashesRound
     (CheckLateTxHashesRound, DONE): ResetAndPauseRound
@@ -60,11 +69,16 @@ transition_func:
     (CollectSignatureRound, DONE): FinalizationRound
     (CollectSignatureRound, NO_MAJORITY): ResetRound
     (CollectSignatureRound, ROUND_TIMEOUT): CollectSignatureRound
-    (DecisionMakingRound, DONE): ResetAndPauseRound
-    (DecisionMakingRound, ERROR): ResetAndPauseRound
-    (DecisionMakingRound, NO_MAJORITY): DecisionMakingRound
-    (DecisionMakingRound, ROUND_TIMEOUT): DecisionMakingRound
-    (DecisionMakingRound, TRANSACT): TxPreparationRound
+    (DepositDecisionMakingRound, DONE): SwapDecisionMakingRound
+    (DepositDecisionMakingRound, TRANSACT): TokenDepositRound
+    (DepositDecisionMakingRound, ERROR): SwapDecisionMakingRound
+    (DepositDecisionMakingRound, NO_MAJORITY): DepositDecisionMakingRound
+    (DepositDecisionMakingRound, ROUND_TIMEOUT): DepositDecisionMakingRound
+    (SwapDecisionMakingRound, DONE): FinishedTxPreparationRound
+    (SwapDecisionMakingRound, SWAP): TokenSwapRound
+    (SwapDecisionMakingRound, ERROR): FinishedTxPreparationRound
+    (SwapDecisionMakingRound, NO_MAJORITY): SwapDecisionMakingRound
+    (SwapDecisionMakingRound, ROUND_TIMEOUT): SwapDecisionMakingRound
     (FinalizationRound, CHECK_HISTORY): CheckTransactionHistoryRound
     (FinalizationRound, CHECK_LATE_ARRIVING_MESSAGE): SynchronizeLateMessagesRound
     (FinalizationRound, DONE): ValidateTransactionRound
@@ -74,10 +88,10 @@ transition_func:
     (RandomnessTransactionSubmissionRound, DONE): SelectKeeperTransactionSubmissionARound
     (RandomnessTransactionSubmissionRound, NO_MAJORITY): RandomnessTransactionSubmissionRound
     (RandomnessTransactionSubmissionRound, ROUND_TIMEOUT): RandomnessTransactionSubmissionRound
-    (RegistrationRound, DONE): DataPullRound
+    (RegistrationRound, DONE): TokenBalanceCheckRound
     (RegistrationRound, NO_MAJORITY): RegistrationRound
-    (RegistrationStartupRound, DONE): DataPullRound
-    (ResetAndPauseRound, DONE): DataPullRound
+    (RegistrationStartupRound, DONE): TokenBalanceCheckRound
+    (ResetAndPauseRound, DONE): TokenBalanceCheckRound
     (ResetAndPauseRound, NO_MAJORITY): RegistrationRound
     (ResetAndPauseRound, RESET_AND_PAUSE_TIMEOUT): RegistrationRound
     (ResetRound, DONE): RandomnessTransactionSubmissionRound
@@ -101,9 +115,12 @@ transition_func:
     (SynchronizeLateMessagesRound, NONE): SelectKeeperTransactionSubmissionBRound
     (SynchronizeLateMessagesRound, ROUND_TIMEOUT): SynchronizeLateMessagesRound
     (SynchronizeLateMessagesRound, SUSPICIOUS_ACTIVITY): RandomnessTransactionSubmissionRound
-    (TxPreparationRound, DONE): RandomnessTransactionSubmissionRound
-    (TxPreparationRound, NO_MAJORITY): TxPreparationRound
-    (TxPreparationRound, ROUND_TIMEOUT): TxPreparationRound
+    (TokenDepositRound, DONE): SwapDecisionMakingRound
+    (TokenDepositRound, NO_MAJORITY): TokenDepositRound
+    (TokenDepositRound, ROUND_TIMEOUT): TokenDepositRound
+    (TokenSwapRound, DONE): FinishedTxPreparationRound
+    (TokenSwapRound, NO_MAJORITY): TokenSwapRound
+    (TokenSwapRound, ROUND_TIMEOUT): TokenSwapRound
     (ValidateTransactionRound, DONE): ResetAndPauseRound
     (ValidateTransactionRound, NEGATIVE): CheckTransactionHistoryRound
     (ValidateTransactionRound, NONE): SelectKeeperTransactionSubmissionBRound

@@ -1,4 +1,4 @@
-name: learning_chained_abci
+name: monitoring_chained_abci
 author: valory
 version: 0.1.0
 type: skill
@@ -6,20 +6,20 @@ description: The chained abci for the learning skill.
 license: Apache-2.0
 aea_version: '>=1.0.0, <2.0.0'
 fingerprint:
-  __init__.py: bafybeihu5y5llhaefw32jodf2nc2x5tig7cfo2fallbodv6vodczunpbve
-  behaviours.py: bafybeiagipms5gfebqysx5sl4dhydppceqv4aga64ibqgygqczbh4imyxu
-  composition.py: bafybeifpamxkxi3qhwcr27dr3uguip7fnr7tfldybic2obf5c2w5trti2q
+  __init__.py: bafybeieeocm2z7palryfybdifqm5lfmnnsuakp3uovzmv32uhxnnlkvxd4
+  behaviours.py: bafybeiei2mizmxx4w3zntoqv3lef47krbl7heoucqovznsiwh6mmdst3bm
+  composition.py: bafybeiayp3ttfv5qukgyzrdnibyw2yj4tbryjfvdyzyzgrxexkdek7dn4a
   dialogues.py: bafybeiakqfqcpg7yrxt4bsyernhy5p77tci4qhmgqqjqi3ttx7zk6sklca
-  fsm_specification.yaml: bafybeibhguliurgppqgues6zhy3e3pioacgapilid7j26u4pmfsump5ape
-  handlers.py: bafybeicru4lanvektcppxpecul4zwjfuaxseopxtsxrfzmbfaz5qk4m67q
-  models.py: bafybeihwb2c4r4fvkrfz6tgcz2ibhuokkk3djjxftoxzkiuxdjyj6fursa
+  fsm_specification.yaml: bafybeidahwy3ayyktsqj4vdwdasqux3vsqf5mda7bci7tmbz3kckwo5rwq
+  handlers.py: bafybeieyxebukayx536mjntnd4co6qq3ckpeiqxq4ducrci45ife7czfua
+  models.py: bafybeiffu4uqqnpnh7cdazzcnxx52lk4haaphdhezjpzy64wysobykgium
 fingerprint_ignore_patterns: []
 connections: []
 contracts: []
 protocols: []
 skills:
 - valory/abstract_round_abci:0.1.0:bafybeiajjzuh6vf23crp55humonknirvv2f4s3dmdlfzch6tc5ow52pcgm
-- valory/learning_abci:0.1.0:bafybeibxcm3zk7tgyjctgnl4qoron3di3deupna3i6oputoyjaxf7m6doq
+- valory/monitoring_abci:0.1.0:bafybeicpspbbmkhsejtlv3yzus7wn27qxciuh4eaccpodskx53eodw3nmu
 - valory/registration_abci:0.1.0:bafybeiffipsowrqrkhjoexem7ern5ob4fabgif7wa6gtlszcoaop2e3oey
 - valory/reset_pause_abci:0.1.0:bafybeif4lgvbzsmzljesxbphycdv52ka7qnihyjrjpfaseclxadcmm6yiq
 - valory/termination_abci:0.1.0:bafybeiekkpo5qef5zaeagm3si6v45qxcojvtjqe4a5ceccvk4q7k3xi3bi
@@ -27,7 +27,7 @@ skills:
 behaviours:
   main:
     args: {}
-    class_name: LearningChainedConsensusBehaviour
+    class_name: MonitoringChainedConsensusBehaviour
 handlers:
   abci:
     args: {}
@@ -132,7 +132,7 @@ models:
       round_timeout_seconds: 30.0
       serious_slash_unit_amount: 8000000000000000
       service_endpoint_base: https://learning.autonolas.tech/
-      service_id: learning
+      service_id: monitoring
       service_registry_address: null
       setup:
         all_participants: []

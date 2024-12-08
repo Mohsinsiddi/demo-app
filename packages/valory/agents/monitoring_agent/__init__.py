@@ -17,9 +17,8 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This module contains the implementation of the learning skill."""
+"""Package for valory/monitoring_agent agent."""
+from pathlib import Path
 
-from aea.configurations.base import PublicId
 
-
-PUBLIC_ID = PublicId.from_str("valory/learning_abci:0.1.0")
+PACKAGE_DIR = Path(__file__).parent

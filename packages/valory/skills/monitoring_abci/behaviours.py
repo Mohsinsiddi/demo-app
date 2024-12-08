@@ -17,7 +17,7 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This package contains round behaviours of LearningAbciApp."""
+"""This package contains round behaviours of MonitoringAbciApp."""
 
 import json
 from abc import ABC
@@ -44,22 +44,22 @@ from packages.valory.skills.abstract_round_abci.behaviours import (
     BaseBehaviour,
 )
 from packages.valory.skills.abstract_round_abci.io_.store import SupportedFiletype
-from packages.valory.skills.learning_abci.models import (
+from packages.valory.skills.monitoring_abci.models import (
     CoingeckoSpecs,
     Params,
     SharedState,
 )
-from packages.valory.skills.learning_abci.payloads import (
+from packages.valory.skills.monitoring_abci.payloads import (
     DepositDecisionMakingPayload,
     SwapDecisionMakingPayload,
     TokenBalanceCheckPayload,
     TokenDepositPayload,
     TokenSwapPayload,
 )
-from packages.valory.skills.learning_abci.rounds import (
+from packages.valory.skills.monitoring_abci.rounds import (
     DepositDecisionMakingRound,
     Event,
-    LearningAbciApp,
+    MonitoringAbciApp,
     SwapDecisionMakingRound,
     SynchronizedData,
     TokenBalanceCheckRound,
@@ -94,8 +94,8 @@ USDC_PRICE_THRESHOLD = 1.0  # Trigger swap if USDC price below $0.99
 USDC_PRICE_DEVIATION_THRESHOLD = 0.00001  # 0.1% deviation threshold
 
 
-class LearningBaseBehaviour(BaseBehaviour, ABC):
-    """Base behaviour for the learning_abci behaviours."""
+class MonitoringBaseBehaviour(BaseBehaviour, ABC):
+    """Base behaviour for the monitoring_abci behaviours."""
 
     @property
     def params(self) -> Params:
@@ -130,7 +130,7 @@ class LearningBaseBehaviour(BaseBehaviour, ABC):
         return now
 
 
-class TokenBalanceCheckBehaviour(LearningBaseBehaviour):
+class TokenBalanceCheckBehaviour(MonitoringBaseBehaviour):
     """TokenBalanceCheckBehaviour"""
     matching_round: Type[AbstractRound] = TokenBalanceCheckRound
 
@@ -268,7 +268,7 @@ class TokenBalanceCheckBehaviour(LearningBaseBehaviour):
         balance = balance / 10**18  # Convert from wei
         return balance
 
-class TokenDepositBehaviour(LearningBaseBehaviour):
+class TokenDepositBehaviour(MonitoringBaseBehaviour):
     """TokenDepositBehaviour"""
     matching_round: Type[AbstractRound] = TokenDepositRound
     
@@ -535,7 +535,7 @@ class TokenDepositBehaviour(LearningBaseBehaviour):
 
         return safe_tx_hash
 
-class DepositDecisionMakingBehaviour(LearningBaseBehaviour):
+class DepositDecisionMakingBehaviour(MonitoringBaseBehaviour):
     """DepositDecisionMakingBehaviour"""
     matching_round: Type[AbstractRound] = DepositDecisionMakingRound
 
@@ -606,7 +606,7 @@ class DepositDecisionMakingBehaviour(LearningBaseBehaviour):
         self.context.logger.info("No deposits needed")
         return "done"
 
-class SwapDecisionMakingBehaviour(LearningBaseBehaviour):
+class SwapDecisionMakingBehaviour(MonitoringBaseBehaviour):
     """SwapDecisionMakingBehaviour - only makes decisions about swaps"""
     matching_round: Type[AbstractRound] = SwapDecisionMakingRound
 
@@ -669,7 +669,7 @@ class SwapDecisionMakingBehaviour(LearningBaseBehaviour):
         self.context.logger.info("No swap needed")
         return "done"
     
-class TokenSwapBehaviour(LearningBaseBehaviour):
+class TokenSwapBehaviour(MonitoringBaseBehaviour):
     """TokenSwapBehaviour"""
     matching_round: Type[AbstractRound] = TokenSwapRound
 
@@ -1217,10 +1217,10 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
 
         return func_selector + bytes.fromhex(params)
 
-class LearningRoundBehaviour(AbstractRoundBehaviour):
-    """LearningRoundBehaviour"""
+class MonitoringRoundBehaviour(AbstractRoundBehaviour):
+    """MonitoringRoundBehaviour"""
     initial_behaviour_cls = TokenBalanceCheckBehaviour
-    abci_app_cls = LearningAbciApp
+    abci_app_cls = MonitoringAbciApp
     behaviours: Set[Type[BaseBehaviour]] = {
         TokenBalanceCheckBehaviour,
         DepositDecisionMakingBehaviour,

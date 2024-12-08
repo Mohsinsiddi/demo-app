@@ -17,9 +17,9 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This package contains round behaviours of LearningChainedSkillAbciApp."""
+"""This package contains round behaviours of MonitoringChainedSkillAbciApp."""
 
-import packages.valory.skills.learning_abci.rounds as LearningAbci
+import packages.valory.skills.monitoring_abci.rounds as MonitoringAbci
 import packages.valory.skills.registration_abci.rounds as RegistrationAbci
 import packages.valory.skills.reset_pause_abci.rounds as ResetAndPauseAbci
 import packages.valory.skills.transaction_settlement_abci.rounds as TxSettlementAbci
@@ -35,12 +35,12 @@ from packages.valory.skills.termination_abci.rounds import (
 )
 
 abci_app_transition_mapping: AbciAppTransitionMapping = {
-    RegistrationAbci.FinishedRegistrationRound: LearningAbci.TokenBalanceCheckRound,
-    LearningAbci.FinishedDecisionMakingRound: ResetAndPauseAbci.ResetAndPauseRound,
-    LearningAbci.FinishedTxPreparationRound: TxSettlementAbci.RandomnessTransactionSubmissionRound,
+    RegistrationAbci.FinishedRegistrationRound: MonitoringAbci.TokenBalanceCheckRound,
+    MonitoringAbci.FinishedDecisionMakingRound: ResetAndPauseAbci.ResetAndPauseRound,
+    MonitoringAbci.FinishedTxPreparationRound: TxSettlementAbci.RandomnessTransactionSubmissionRound,
     TxSettlementAbci.FinishedTransactionSubmissionRound: ResetAndPauseAbci.ResetAndPauseRound,
     TxSettlementAbci.FailedRound: TxSettlementAbci.RandomnessTransactionSubmissionRound,
-    ResetAndPauseAbci.FinishedResetAndPauseRound: LearningAbci.TokenBalanceCheckRound,
+    ResetAndPauseAbci.FinishedResetAndPauseRound: MonitoringAbci.TokenBalanceCheckRound,
     ResetAndPauseAbci.FinishedResetAndPauseErrorRound: RegistrationAbci.RegistrationRound,
 }
 
@@ -50,10 +50,10 @@ termination_config = BackgroundAppConfig(
     abci_app=TerminationAbciApp,
 )
 
-LearningChainedSkillAbciApp = chain(
+MonitoringChainedSkillAbciApp = chain(
     (
         RegistrationAbci.AgentRegistrationAbciApp,
-        LearningAbci.LearningAbciApp,
+        MonitoringAbci.MonitoringAbciApp,
         TxSettlementAbci.TransactionSubmissionAbciApp,
         ResetAndPauseAbci.ResetPauseAbciApp,
     ),
