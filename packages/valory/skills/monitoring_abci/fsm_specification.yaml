@@ -1,0 +1,42 @@
+alphabet_in:
+- DONE
+- ERROR
+- NO_MAJORITY
+- ROUND_TIMEOUT
+- TRANSACT
+- SWAP
+default_start_state: TokenBalanceCheckRound
+final_states:
+- FinishedDecisionMakingRound
+- FinishedTxPreparationRound
+label: MonitoringAbciApp
+start_states:
+- TokenBalanceCheckRound
+states:
+- TokenBalanceCheckRound
+- DepositDecisionMakingRound
+- SwapDecisionMakingRound
+- TokenDepositRound
+- TokenSwapRound
+- FinishedDecisionMakingRound
+- FinishedTxPreparationRound
+transition_func:
+    (TokenBalanceCheckRound, DONE): DepositDecisionMakingRound
+    (TokenBalanceCheckRound, NO_MAJORITY): TokenBalanceCheckRound
+    (TokenBalanceCheckRound, ROUND_TIMEOUT): TokenBalanceCheckRound
+    (DepositDecisionMakingRound, DONE): SwapDecisionMakingRound
+    (DepositDecisionMakingRound, TRANSACT): TokenDepositRound
+    (DepositDecisionMakingRound, ERROR): SwapDecisionMakingRound
+    (DepositDecisionMakingRound, NO_MAJORITY): DepositDecisionMakingRound
+    (DepositDecisionMakingRound, ROUND_TIMEOUT): DepositDecisionMakingRound
+    (SwapDecisionMakingRound, DONE): FinishedTxPreparationRound
+    (SwapDecisionMakingRound, SWAP): TokenSwapRound
+    (SwapDecisionMakingRound, ERROR): FinishedTxPreparationRound
+    (SwapDecisionMakingRound, NO_MAJORITY): SwapDecisionMakingRound
+    (SwapDecisionMakingRound, ROUND_TIMEOUT): SwapDecisionMakingRound
+    (TokenDepositRound, DONE): SwapDecisionMakingRound
+    (TokenDepositRound, NO_MAJORITY): TokenDepositRound
+    (TokenDepositRound, ROUND_TIMEOUT): TokenDepositRound
+    (TokenSwapRound, DONE): FinishedTxPreparationRound
+    (TokenSwapRound, NO_MAJORITY): TokenSwapRound
+    (TokenSwapRound, ROUND_TIMEOUT): TokenSwapRound
