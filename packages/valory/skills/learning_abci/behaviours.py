@@ -84,8 +84,8 @@ METADATA_FILENAME = "metadata.json"
 
 # Add these constants at the top of the file
 OLAS_PRICE_THRESHOLD = 5.0  # $1.00 USD
-OLAS_BALANCE_THRESHOLD = 100 * 10**18  # 100 OLAS in wei
-NATIVE_BALANCE_THRESHOLD = 1 * 10**18  # 1 xDAI in wei
+OLAS_BALANCE_THRESHOLD = 1000 * 10**18  # 100 OLAS in wei
+NATIVE_BALANCE_THRESHOLD = 100 * 10**18  # 1 xDAI in wei
 REFILL_AMOUNT_NATIVE = 0.5 * 10**18  # 0.5 xDAI in wei
 REFILL_AMOUNT_OLAS = 50 * 10**18  # 50 OLAS in wei
 SWAP_AMOUNT = 100000000000000000  # 0.1 xDAI to swap
@@ -280,22 +280,15 @@ class TokenDepositBehaviour(LearningBaseBehaviour):
             sender = self.context.agent_address
             # Get balances from synchronized data
             token_balance = self.synchronized_data.token_balance
-            self.context.logger.info(f"Token Balance: {token_balance}")
             token_balance_wei = int(token_balance * 10**18) if token_balance is not None else None
 
             native_balance = self.synchronized_data.native_balance
-            self.context.logger.info(f"Native Balance: {native_balance}")
             native_balance_wei = int(native_balance * 10**18) if native_balance is not None else None
 
             # Determine which deposits are needed
             needs_native = native_balance_wei is not None and native_balance_wei < NATIVE_BALANCE_THRESHOLD
-            # needs_native = True
-
-            self.context.logger.info(f"needs_native: {needs_native}")
 
             needs_olas = token_balance_wei is not None and token_balance_wei < OLAS_BALANCE_THRESHOLD
-            # needs_olas = True
-            self.context.logger.info(f"needs_olas: {needs_olas}")
 
             # Get timestamp to decide which transaction to make
             now = int(self.get_sync_timestamp())
@@ -707,7 +700,7 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
                 elif deposit_tx_hash:
                     # If we have both transactions, combine them
                     self.context.logger.info("Combining deposit and swap transactions")
-                    tx_hash = yield from self.combine_transactions(deposit_tx_hash, swap_tx_hash)
+                    tx_hash = yield from self.combine_transactions(deposit_tx_hash)
                     if not tx_hash:
                         self.context.logger.error("Failed to combine transactions")
                         tx_hash = ""
@@ -775,10 +768,10 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
         self.context.logger.info(f"Input amount: {amounts[0]} WXDAI")
         self.context.logger.info(f"Expected output: {amounts[1]} USDC")
 
-        # Set minimum output with 0.5% slippage
-        amount_out_min = int(amounts[1] * 0.995)
+        # Set minimum output with 1% slippage
+        amount_out_min = int(amounts[1] * 0.99)
         now = int(self.get_sync_timestamp())
-        deadline = now + 300  # 5 minutes
+        deadline = now + 600  # 5 minutes
 
         # 1. Build wrap transaction
         self.context.logger.info("Building wrap transaction...")
@@ -944,14 +937,12 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
     def combine_transactions(
         self, 
         deposit_tx_hash: str, 
-        swap_tx_hash: str
     ) -> Generator[None, None, Optional[str]]:
         """Combine deposit and swap transactions using multisend."""
         
         self.context.logger.info(
             f"Starting transaction combination:\n"
             f"Deposit tx hash: {deposit_tx_hash}\n"
-            f"Swap tx hash: {swap_tx_hash}"
         )
 
         # Check current balances
@@ -1011,24 +1002,108 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
         swap_value = SWAP_AMOUNT
         total_value += swap_value
 
+        # Token addresses
+        wxdai = "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d"  # WXDAI contract
+        usdc = "0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83"         
+        # Amount of xDAI to wrap and swap (0.1 xDAI)
+        amount = swap_value
+        path = [wxdai, usdc]
+
+        # Get expected output amount
+
+        response_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_STATE,
+            contract_address=self.params.sushiswap_router_address,
+            contract_id=str(SushiswapRouter.contract_id),
+            contract_callable="get_amounts_out",
+            amount_in=amount,
+            path=path,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        if response_msg.performative != ContractApiMessage.Performative.STATE:
+            self.context.logger.error(
+                f"Error getting swap amounts.\n"
+                f"Expected performative: {ContractApiMessage.Performative.STATE}\n"
+                f"Got: {response_msg.performative}"
+            )
+            return None
+
+        amounts = response_msg.state.body.get("amounts")
+        if not amounts or len(amounts) != 2:
+            self.context.logger.error(f"Invalid amounts returned: {amounts}")
+            return None
+
+        # Set minimum output with 1% slippage
+        amount_out_min = int(amounts[1] * 0.99)
+        now = int(self.get_sync_timestamp())
+        deadline = now + 600  # 5 minutes
+
+        # 1. Build wrap transaction
+        wrap_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
+            contract_address=wxdai,
+            contract_id=str(ERC20.contract_id),
+            contract_callable="build_deposit_tx",
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+        
+        if wrap_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(f"Error building wrap tx: {wrap_msg}")
+            return None
+
+        # 2. Build approval transaction
+        approval_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
+            contract_address=wxdai,
+            contract_id=str(ERC20.contract_id),
+            contract_callable="build_approval_tx",
+            spender=self.params.sushiswap_router_address,
+            amount=amount,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+        if approval_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(f"Error building approval tx: {approval_msg}")
+            return None
+
+        # 3. Build swap transaction
+        self.context.logger.info("Building swap transaction...")
+        swap_msg = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
+            contract_address=self.params.sushiswap_router_address,
+            contract_id=str(SushiswapRouter.contract_id),
+            contract_callable="build_swap_exact_tokens_for_tokens_tx",
+            amount_in=amount,
+            amount_out_min=amount_out_min,
+            path=path,
+            to_address=self.synchronized_data.safe_contract_address,
+            deadline=deadline,
+            chain_id=GNOSIS_CHAIN_ID,
+        )
+
+        if swap_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(f"Error building swap tx: {swap_msg}")
+            return None
+        self.context.logger.info("Successfully built swap transaction for combined transactions")
+
         multi_send_txs.extend([
             {
                 "operation": MultiSendOperation.CALL,
-                "to": "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d",  # WXDAI
-                "value": swap_value,
-                "data": self.get_wrap_data(),
+                "to": wxdai,
+                "value": amount,  # Send xDAI with the wrap tx
+                "data": wrap_msg.raw_transaction.body["data"],
             },
             {
                 "operation": MultiSendOperation.CALL,
-                "to": "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d",  # WXDAI
+                "to": wxdai,
                 "value": 0,
-                "data": self.get_approval_data(swap_value),
+                "data": approval_msg.raw_transaction.body["data"],
             },
             {
                 "operation": MultiSendOperation.CALL,
                 "to": self.params.sushiswap_router_address,
                 "value": 0,
-                "data": self.get_swap_data(swap_value),
+                "data": swap_msg.raw_transaction.body["data"],
             }
         ])
 
@@ -1038,8 +1113,7 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
             f"Total value: {total_value}"
         )
 
-        # Build multisend transaction
-        contract_api_msg = yield from self.get_contract_api_response(
+        multisend_msg = yield from self.get_contract_api_response(
             performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,
             contract_address=self.params.multisend_address,
             contract_id=str(MultiSendContract.contract_id),
@@ -1048,24 +1122,21 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
             chain_id=GNOSIS_CHAIN_ID,
         )
 
-        if contract_api_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
-            self.context.logger.error(
-                f"Failed to build multisend.\n"
-                f"Expected: {ContractApiMessage.Performative.RAW_TRANSACTION}\n"
-                f"Got: {contract_api_msg.performative}\n"
-                f"Message: {contract_api_msg}"
-            )
+        if multisend_msg.performative != ContractApiMessage.Performative.RAW_TRANSACTION:
+            self.context.logger.error(f"Error building multisend tx: {multisend_msg}")
             return None
 
-        multisend_data = cast(str, contract_api_msg.raw_transaction.body["data"])[2:]
-        self.context.logger.info(f"Generated multisend data: {multisend_data}")
+        multisend_data = multisend_msg.raw_transaction.body["data"]
+        if not multisend_data:
+            self.context.logger.error("No multisend data received")
+            return None
 
         # Build final safe transaction
-        self.context.logger.info("Building final Safe transaction")
+        self.context.logger.info("Building final Safe transaction hash...")
         safe_tx_hash = yield from self._build_safe_tx_hash(
             to_address=self.params.multisend_address,
-            value=total_value,
-            data=bytes.fromhex(multisend_data),
+            value=total_value,  # Need to send xDAI with the transaction
+            data=bytes.fromhex(multisend_data[2:]),  # Strip '0x' prefix
             operation=SafeOperation.DELEGATE_CALL.value,
         )
 
@@ -1075,6 +1146,7 @@ class TokenSwapBehaviour(LearningBaseBehaviour):
             self.context.logger.error("Failed to generate Safe transaction hash")
 
         return safe_tx_hash
+
     
     def get_wrap_data(self) -> bytes:
         """Get the data for wrapping xDAI."""
