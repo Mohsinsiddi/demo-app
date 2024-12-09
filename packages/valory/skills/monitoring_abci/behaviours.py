@@ -141,9 +141,8 @@ class TokenBalanceCheckBehaviour(MonitoringBaseBehaviour):
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
             sender = self.context.agent_address
             MONITORED_ADDRESS = self.params.monitored_address
-            # Get USDC price instead of OLAS
-            # usdc_price = yield from self.get_usdc_price()
-            usdc_price = 0.98
+            # Get USDC price 
+            usdc_price = yield from self.get_usdc_price()
 
             self.context.logger.info(f"Current USDC price: ${usdc_price}")
             
