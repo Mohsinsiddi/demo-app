@@ -17,7 +17,13 @@
 #
 # ------------------------------------------------------------------------------
 
-"""This package contains the rounds of MonitoringAbciApp."""
+"""This package contains the rounds of MonitoringAbciApp.
+
+The MonitoringAbciApp implements a round-based consensus system for monitoring
+token balances, making deposit/swap decisions, and executing transactions. 
+The rounds are organized in a sequential flow, with each round collecting and
+validating data from participating agents before proceeding to the next stage.
+"""
 
 from enum import Enum
 from typing import Dict, FrozenSet, Optional, Set, Tuple
@@ -44,7 +50,18 @@ from packages.valory.skills.monitoring_abci.payloads import (
 
 
 class Event(Enum):
-    """MonitoringAbciApp Events"""
+    """Events triggered during the MonitoringAbciApp rounds.
+    
+    These events determine the transitions between different rounds:
+    DONE: Round completed successfully
+    ERROR: Error occurred during round execution
+    TRANSACT: Transaction needs to be executed
+    SWAP: Token swap needs to be performed
+    NO_MAJORITY: Consensus could not be reached
+    ROUND_TIMEOUT: Round timed out
+    NO_SWAP_BUT_DEPOSIT: No swap needed but deposit is pending
+    """
+
     DONE = "done"
     ERROR = "error"
     TRANSACT = "transact"
@@ -56,7 +73,16 @@ class Event(Enum):
 
 
 class SynchronizedData(BaseSynchronizedData):
-    """Class to represent the synchronized data."""
+    """Synchronized data shared between agents during rounds.
+    
+    This class manages the shared state between agents including:
+    - Token balances and prices
+    - Transaction details
+    - Round participation data
+    - IPFS hashes for price deviation records
+    
+    All data is stored in a synchronized database accessible to all agents.
+    """
 
     def _get_deserialized(self, key: str) -> DeserializedCollection:
         """Strictly get a collection and return it deserialized."""
@@ -120,7 +146,15 @@ class SynchronizedData(BaseSynchronizedData):
 
 
 class TokenBalanceCheckRound(CollectSameUntilThresholdRound):
-    """TokenBalanceCheckRound"""
+    """Round for collecting and validating token balance and price data.
+    
+    This round:
+    1. Collects balance checks for OLAS and native tokens
+    2. Gathers current USDC price data
+    3. Records significant price deviations to IPFS
+    4. Ensures consensus on collected data before proceeding
+    """
+
     payload_class = TokenBalanceCheckPayload
     synchronized_data_class = SynchronizedData
     done_event = Event.DONE
@@ -135,7 +169,14 @@ class TokenBalanceCheckRound(CollectSameUntilThresholdRound):
 
 
 class DepositDecisionMakingRound(CollectSameUntilThresholdRound):
-    """DepositDecisionMakingRound"""
+    """Round for reaching consensus on deposit decisions.
+    
+    This round:
+    1. Collects deposit decisions from all agents
+    2. Compares current balances against thresholds
+    3. Reaches consensus on whether deposits are needed
+    4. Triggers appropriate follow-up rounds based on decision
+    """
     payload_class = DepositDecisionMakingPayload
     synchronized_data_class = SynchronizedData
 
@@ -154,7 +195,14 @@ class DepositDecisionMakingRound(CollectSameUntilThresholdRound):
 
 
 class SwapDecisionMakingRound(CollectSameUntilThresholdRound):
-    """SwapDecisionMakingRound"""
+    """Round for reaching consensus on swap decisions.
+    
+    This round:
+    1. Analyzes price data and deviation records
+    2. Collects swap decisions from all agents
+    3. Reaches consensus on whether swaps should be executed
+    4. Considers deposit status when making swap decisions
+    """
     payload_class = SwapDecisionMakingPayload
     synchronized_data_class = SynchronizedData
 
@@ -173,7 +221,14 @@ class SwapDecisionMakingRound(CollectSameUntilThresholdRound):
 
 
 class TokenDepositRound(CollectSameUntilThresholdRound):
-    """TokenDepositRound"""
+    """Round for preparing and validating deposit transactions.
+    
+    This round:
+    1. Collects prepared deposit transaction details
+    2. Validates transaction parameters
+    3. Reaches consensus on transaction hash
+    4. Prepares transaction for submission to Safe
+    """
     payload_class = TokenDepositPayload
     synchronized_data_class = SynchronizedData
     done_event = Event.DONE
@@ -186,7 +241,14 @@ class TokenDepositRound(CollectSameUntilThresholdRound):
 
 
 class TokenSwapRound(CollectSameUntilThresholdRound):
-    """TokenSwapRound"""
+    """Round for preparing and validating swap transactions.
+    
+    This round:
+    1. Collects prepared swap transaction details
+    2. Validates DEX interaction parameters
+    3. Reaches consensus on transaction hash
+    4. Prepares complex transactions (wrap, approve, swap)
+    """
     payload_class = TokenSwapPayload
     synchronized_data_class = SynchronizedData
     done_event = Event.DONE
@@ -199,15 +261,38 @@ class TokenSwapRound(CollectSameUntilThresholdRound):
 
 
 class FinishedDecisionMakingRound(DegenerateRound):
-    """FinishedDecisionMakingRound"""
+   """Terminal round indicating completion of decision-making process.
+    
+    This round is reached when:
+    1. All necessary decisions have been made
+    2. No actions (deposits/swaps) are required
+    3. System can proceed to next monitoring cycle
+    """
 
 
 class FinishedTxPreparationRound(DegenerateRound):
-    """FinishedTxPreparationRound"""
+    """Terminal round indicating completion of transaction preparation.
+    
+    This round is reached when:
+    1. All necessary transactions have been prepared
+    2. Transaction hashes have been validated
+    3. System is ready for transaction execution
+    """
 
 
 class MonitoringAbciApp(AbciApp[Event]):
-    """MonitoringAbciApp"""
+    """Main ABCI application for token monitoring and management.
+    
+    This application coordinates the entire monitoring process:
+    1. Initiates balance and price checks
+    2. Manages decision-making rounds for deposits and swaps
+    3. Handles transaction preparation and validation
+    4. Controls transitions between different rounds
+    5. Ensures proper completion of monitoring cycles
+    
+    The application follows a strict state machine pattern with
+    well-defined transitions and checks at each stage.
+    """
 
     initial_round_cls: AppState = TokenBalanceCheckRound
     initial_states: Set[AppState] = {TokenBalanceCheckRound}

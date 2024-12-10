@@ -86,7 +86,7 @@ METADATA_FILENAME = "metadata.json"
 OLAS_PRICE_THRESHOLD = 5.0  # $1.00 USD
 OLAS_BALANCE_THRESHOLD = 1000 * 10**18  # 100 OLAS in wei
 NATIVE_BALANCE_THRESHOLD = 100 * 10**18  # 1 xDAI in wei
-REFILL_AMOUNT_NATIVE = 0.5 * 10**18  # 0.5 xDAI in wei
+REFILL_AMOUNT_NATIVE = 1 * 10**18  # 0.5 xDAI in wei
 REFILL_AMOUNT_OLAS = 50 * 10**18  # 50 OLAS in wei
 SWAP_AMOUNT = 100000000000000000  # 0.1 xDAI to swap
 
@@ -95,7 +95,15 @@ USDC_PRICE_DEVIATION_THRESHOLD = 0.00001  # 0.1% deviation threshold
 
 
 class MonitoringBaseBehaviour(BaseBehaviour, ABC):
-    """Base behaviour for the monitoring_abci behaviours."""
+    """Base behaviour for monitoring ABCI application.
+
+    This class provides common functionality used by all monitoring behaviours including:
+    - Access to shared parameters and state data
+    - Common properties for token/contract interactions 
+    - Utility methods for timestamps and file handling
+
+    All monitoring-specific behaviours inherit from this base class.
+    """
 
     @property
     def params(self) -> Params:
@@ -131,7 +139,18 @@ class MonitoringBaseBehaviour(BaseBehaviour, ABC):
 
 
 class TokenBalanceCheckBehaviour(MonitoringBaseBehaviour):
-    """TokenBalanceCheckBehaviour"""
+    """Behaviour for checking token balances and prices.
+
+    This behaviour performs the initial checks in each monitoring round by:
+    1. Retrieving current USDC price from Coingecko API
+    2. Checking OLAS and native token balances for monitored addresses
+    3. Recording significant price deviations to IPFS
+    4. Creating a payload with the gathered data for consensus
+
+    The balance and price data collected here is used by subsequent behaviours
+    to make decisions about deposits and swaps.
+    """
+
     matching_round: Type[AbstractRound] = TokenBalanceCheckRound
 
     def async_act(self) -> Generator:
@@ -269,7 +288,17 @@ class TokenBalanceCheckBehaviour(MonitoringBaseBehaviour):
         return balance
 
 class TokenDepositBehaviour(MonitoringBaseBehaviour):
-    """TokenDepositBehaviour"""
+    """Behaviour for executing token deposits.
+
+    This behaviour handles the creation of deposit transactions when balances
+    are below thresholds. It can:
+    - Create native xDAI deposit transactions
+    - Create OLAS token deposit transactions 
+    - Combine multiple deposits into a single multisend transaction
+    
+    The behaviour builds and formats transactions for the Gnosis Safe to execute.
+    """
+
     matching_round: Type[AbstractRound] = TokenDepositRound
     
     def async_act(self) -> Generator:
@@ -536,7 +565,16 @@ class TokenDepositBehaviour(MonitoringBaseBehaviour):
         return safe_tx_hash
 
 class DepositDecisionMakingBehaviour(MonitoringBaseBehaviour):
-    """DepositDecisionMakingBehaviour"""
+    """Behaviour for deciding if token deposits are needed.
+
+    This behaviour analyzes current token balances against defined thresholds:
+    - Checks if OLAS balance is below OLAS_BALANCE_THRESHOLD
+    - Checks if native balance is below NATIVE_BALANCE_THRESHOLD
+    
+    Based on these checks, it determines whether deposits should be initiated 
+    and what type of deposits are needed (native, OLAS, or both).
+    """
+
     matching_round: Type[AbstractRound] = DepositDecisionMakingRound
 
     def async_act(self) -> Generator:
@@ -607,7 +645,16 @@ class DepositDecisionMakingBehaviour(MonitoringBaseBehaviour):
         return "done"
 
 class SwapDecisionMakingBehaviour(MonitoringBaseBehaviour):
-    """SwapDecisionMakingBehaviour - only makes decisions about swaps"""
+    """Behaviour for deciding if token swaps are needed.
+
+    This behaviour analyzes price data to determine if swaps should be executed:
+    - Checks USDC price deviations against USDC_PRICE_DEVIATION_THRESHOLD
+    - Considers current balance statuses in conjunction with swap needs
+    - Makes swap decisions based on predefined price thresholds
+    
+    The behaviour can trigger swap transactions when favorable price conditions
+    are detected and recorded in IPFS.
+    """
     matching_round: Type[AbstractRound] = SwapDecisionMakingRound
 
     def async_act(self) -> Generator:
@@ -682,7 +729,19 @@ class SwapDecisionMakingBehaviour(MonitoringBaseBehaviour):
         return "done"
     
 class TokenSwapBehaviour(MonitoringBaseBehaviour):
-    """TokenSwapBehaviour"""
+    """Behaviour for executing token swaps.
+
+    This behaviour handles the creation and execution of swap transactions when
+    price conditions are favorable. Key functions include:
+    - Wrapping native tokens (xDAI to WXDAI)
+    - Approving token spending for DEX interactions
+    - Executing swaps via SushiSwap 
+    - Combining swaps with pending deposits when possible
+    
+    The behaviour handles all steps needed for safe token swaps including proper
+    transaction ordering and slippage protection.
+    """
+
     matching_round: Type[AbstractRound] = TokenSwapRound
 
     def async_act(self) -> Generator:
@@ -1230,7 +1289,16 @@ class TokenSwapBehaviour(MonitoringBaseBehaviour):
         return func_selector + bytes.fromhex(params)
 
 class MonitoringRoundBehaviour(AbstractRoundBehaviour):
-    """MonitoringRoundBehaviour"""
+    """Top-level behaviour coordinating the monitoring rounds.
+
+    This behaviour manages the flow between different monitoring behaviours:
+    1. Starts with TokenBalanceCheckBehaviour for initial data gathering
+    2. Coordinates decision making behaviours for deposits and swaps
+    3. Manages execution behaviours for approved transactions
+    
+    The behaviour ensures proper sequencing and synchronization of the entire
+    monitoring process across the agent network.
+    """
     initial_behaviour_cls = TokenBalanceCheckBehaviour
     abci_app_cls = MonitoringAbciApp
     behaviours: Set[Type[BaseBehaviour]] = {

@@ -3,10 +3,10 @@
         "contract/valory/erc20/0.1.0": "bafybeibyhuxozkkvsymqz45vxixr3w3bs4vsvxg2nsx5jlyi3f3hhn7ezi",
         "contract/valory/token_reader/0.1.0": "bafybeihgr6nhh4lcrmheaggoks377wwo3ltaae6bcqat7x3fd6iztezdue",
         "contract/valory/sushiswap_router/0.1.0": "bafybeihl7c577syljhdvkleztvtobhy3upgd4oeywzyala363s5mzuozke",
-        "skill/valory/monitoring_abci/0.1.0": "bafybeickolowv33ll4ecokg5an47urqr3rwbnlcsaun4w227orxo24l2py",
-        "skill/valory/monitoring_chained_abci/0.1.0": "bafybeiasagqwbdi67iw6h62rjgmodborahgmc27xayt4icj5l53wpfdrhy",
-        "agent/valory/monitoring_agent/0.1.0": "bafybeid5fykd7ebajnhurek4ue7bazkaehcqzwe4jnpqhl45bpy6u5ywqu",
-        "service/valory/monitoring_service/0.1.0": "bafybeih3qr2got35pm6dog3ur6o3d6d5jxjnu6hqi4gjd3morkqh5uswse"
+        "skill/valory/monitoring_abci/0.1.0": "bafybeigz65ol4uy64i7pbnmzuofauenlallhvius3x3qv6ho5nt4h5rpfa",
+        "skill/valory/monitoring_chained_abci/0.1.0": "bafybeibfvdkigvsg2ph2ghivodlzm665q4h2jtaa4dmkyuur3bkdfggjh4",
+        "agent/valory/monitoring_agent/0.1.0": "bafybeibe5d63ck27canihqdirogaljsoucrknqlmrvl3bqkr2i5q4zd3vu",
+        "service/valory/monitoring_service/0.1.0": "bafybeibbvwe2ydmk6okxez5eso5qyejkmivdwbcclid66tcu57jlez53m4"
     },
     "third_party": {
         "protocol/open_aea/signing/1.0.0": "bafybeihv62fim3wl2bayavfcg3u5e5cxu3b7brtu4cn5xoxd6lqwachasi",
