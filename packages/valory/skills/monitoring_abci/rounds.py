@@ -51,6 +51,8 @@ class Event(Enum):
     SWAP = "swap"
     NO_MAJORITY = "no_majority"
     ROUND_TIMEOUT = "round_timeout"
+    NO_SWAP_BUT_DEPOSIT = "no_swap_but_deposit"
+
 
 
 class SynchronizedData(BaseSynchronizedData):
@@ -223,8 +225,9 @@ class MonitoringAbciApp(AbciApp[Event]):
             Event.ROUND_TIMEOUT: DepositDecisionMakingRound,
         },
         SwapDecisionMakingRound: {
-            Event.DONE: FinishedTxPreparationRound,
+            Event.DONE: FinishedDecisionMakingRound,
             Event.SWAP: TokenSwapRound,
+            Event.NO_SWAP_BUT_DEPOSIT:FinishedTxPreparationRound,
             Event.ERROR: FinishedTxPreparationRound,
             Event.NO_MAJORITY: SwapDecisionMakingRound,
             Event.ROUND_TIMEOUT: SwapDecisionMakingRound,
