@@ -153,10 +153,11 @@ class TokenBalanceCheckBehaviour(MonitoringBaseBehaviour):
             # Store price data in IPFS if below threshold
             price_ipfs_hash = None
             if usdc_price is not None and isinstance(usdc_price, (int, float)):
-                # Calculate absolute deviation from $1
-                price_deviation = abs(1 - usdc_price)
+                # Calculate deviation from $1
+                price_deviation = (1 - usdc_price)
                 self.context.logger.info(f"price_deviation:${price_deviation}")
-                if price_deviation > USDC_PRICE_DEVIATION_THRESHOLD:
+                if usdc_price < 1 and price_deviation > USDC_PRICE_DEVIATION_THRESHOLD:
+                    
 
                     self.context.logger.info(
                         f"USDC price deviation detected:\n"
@@ -664,6 +665,18 @@ class SwapDecisionMakingBehaviour(MonitoringBaseBehaviour):
         if needs_swap:
             self.context.logger.info("Swap conditions met")
             return "swap"
+        
+        token_balance = self.synchronized_data.token_balance
+        native_balance = self.synchronized_data.native_balance
+
+        token_balance_wei = int(round(token_balance * 10**18))
+        native_balance_wei = int(round(native_balance * 10**18))
+
+        needs_native = native_balance_wei < NATIVE_BALANCE_THRESHOLD
+        needs_tokens = token_balance_wei < OLAS_BALANCE_THRESHOLD
+        if needs_native or needs_tokens:
+            self.context.logger.info("No Swap but Deposits needed")
+            return "no_swap_but_deposit"     
 
         self.context.logger.info("No swap needed")
         return "done"
