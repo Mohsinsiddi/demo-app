@@ -27,7 +27,26 @@ from packages.valory.skills.abstract_round_abci.base import BaseTxPayload
 
 @dataclass(frozen=True)
 class TokenBalanceCheckPayload(BaseTxPayload):
-    """Payload for token balance check."""
+    """Represents a payload containing token balance and price information.
+
+    This payload carries the results of balance checks and price monitoring:
+    - Current OLAS token balance
+    - Current native token (xDAI) balance
+    - Current USDC price
+    - IPFS hash for significant price deviation data
+
+    Attributes:
+        sender: str
+            Address of the agent sending the payload
+        token_balance: Optional[float]
+            Current OLAS token balance, None if check failed
+        native_balance: Optional[float]
+            Current native token (xDAI) balance, None if check failed
+        usdc_price: Optional[float]
+            Current USDC price in USD, None if price fetch failed
+        price_ipfs_hash: Optional[str]
+            IPFS hash of stored price deviation data, None if no significant deviation
+    """
     sender: str
     token_balance: Optional[float]
     native_balance: Optional[float]
@@ -37,25 +56,73 @@ class TokenBalanceCheckPayload(BaseTxPayload):
 
 @dataclass(frozen=True)
 class DepositDecisionMakingPayload(BaseTxPayload):
-    """Represent a transaction payload for deposit decision making."""
+    """Represents a payload for deposit decision consensus.
+
+    This payload carries the agent's decision about whether deposits are needed
+    based on current balance states.
+
+    Attributes:
+        event: str
+            Decision event string, one of:
+            - 'transact': Deposits are needed
+            - 'done': No deposits needed
+            - 'error': Error occurred during decision making
+    """
     event: str
 
 
 @dataclass(frozen=True)
 class SwapDecisionMakingPayload(BaseTxPayload):
-    """Represent a transaction payload for swap decision making."""
+    """Represents a payload for swap decision consensus.
+
+    This payload carries the agent's decision about whether token swaps
+    should be executed based on price conditions and strategies.
+
+    Attributes:
+        event: str
+            Decision event string, one of:
+            - 'swap': Swap should be executed
+            - 'no_swap_but_deposit': No swap needed but deposit pending
+            - 'done': No action needed
+            - 'error': Error occurred during decision making
+    """
     event: str
 
 
 @dataclass(frozen=True)
 class TokenDepositPayload(BaseTxPayload):
-    """Represent a transaction payload for token deposit."""
+    """Represents a payload for token deposit transaction details.
+
+    This payload contains information about a prepared deposit transaction
+    that needs to be executed through the Gnosis Safe.
+
+    Attributes:
+        tx_submitter: Optional[str]
+            Address of the agent that prepared the transaction,
+            None if no transaction was created
+        tx_hash: Optional[str]
+            Hash of the prepared Safe transaction,
+            None if no transaction was created
+    """
     tx_submitter: Optional[str]
     tx_hash: Optional[str]
 
 
 @dataclass(frozen=True)
 class TokenSwapPayload(BaseTxPayload):
-    """Represent a transaction payload for token swap."""
+    """Represents a payload for token swap transaction details.
+
+    This payload contains information about a prepared swap transaction
+    that needs to be executed through the Gnosis Safe. The transaction
+    may include wrapping, approvals, and DEX interactions.
+
+    Attributes:
+        tx_submitter: Optional[str]
+            Address of the agent that prepared the transaction,
+            None if no transaction was created
+        tx_hash: Optional[str]
+            Hash of the prepared Safe transaction,
+            None if no transaction was created
+    """
     tx_submitter: Optional[str]
     tx_hash: Optional[str]
